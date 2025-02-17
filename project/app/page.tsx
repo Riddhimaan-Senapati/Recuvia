@@ -17,6 +17,9 @@ export default function Home() {
           </div>
           <div className="flex items-center space-x-4">
             <Button variant="ghost" asChild>
+              <Link href="/main">Browse Items</Link>
+            </Button>
+            <Button variant="ghost" asChild>
               <Link href="/auth/sign-in">Sign In</Link>
             </Button>
             <Button className="bg-found text-found-foreground hover:bg-found/90" asChild>
@@ -37,13 +40,17 @@ export default function Home() {
             Simply upload a photo and we'll search our database of found items.
           </p>
           <div className="mt-12 flex flex-col gap-4 sm:flex-row">
-            <Button size="lg" className="gap-2 bg-lost text-lost-foreground hover:bg-lost/90">
-              <Upload className="h-5 w-5" />
-              Upload Lost Item
+            <Button size="lg" className="gap-2 bg-lost text-lost-foreground hover:bg-lost/90" asChild>
+              <Link href="/main">
+                <Upload className="h-5 w-5" />
+                Upload Lost Item
+              </Link>
             </Button>
-            <Button size="lg" className="gap-2 bg-found text-found-foreground hover:bg-found/90">
-              <SearchIcon className="h-5 w-5" />
-              Browse Found Items
+            <Button size="lg" className="gap-2 bg-found text-found-foreground hover:bg-found/90" asChild>
+              <Link href="/main">
+                <SearchIcon className="h-5 w-5" />
+                Browse Found Items
+              </Link>
             </Button>
           </div>
         </div>
