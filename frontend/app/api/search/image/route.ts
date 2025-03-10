@@ -1,4 +1,6 @@
 // app/api/search/image/route.ts
+import { generateImageEmbedding } from "@/lib/vector-search";
+import { supabase } from "@/lib/supabase";
 export async function POST(req: Request) {
     // Process uploaded image
     const formData = await req.formData();
