@@ -26,8 +26,8 @@ export async function processImage(file: File | Buffer, itemId: string): Promise
   storagePath: string;
 }> {
   // Convert File to Buffer if needed
-  const buffer = file instanceof File 
-    ? Buffer.from(await file.arrayBuffer()) 
+  const buffer = file instanceof File
+    ? Buffer.from(await file.arrayBuffer())
     : file;
 
   // Process image with Sharp
@@ -180,7 +180,7 @@ export async function searchSimilarImages(
       
       const { data: items, error: itemsError } = await supabase
         .from('items')
-        .select('*, item_images(*)')
+        .select('*, item_images(*), profiles:user_id(email)')
         .in('id', itemIds)
         .order('created_at', { ascending: false });
       
