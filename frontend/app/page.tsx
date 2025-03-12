@@ -20,10 +20,10 @@ export default function Home() {
               <Link href="/main">Browse Items</Link>
             </Button>
             <Button variant="ghost" asChild>
-              <Link href="/auth/sign-in">Sign In</Link>
+              <Link href="/auth/signin">Sign In</Link>
             </Button>
             <Button className="bg-found text-found-foreground hover:bg-found/90" asChild>
-              <Link href="/auth/sign-up">Sign Up</Link>
+              <Link href="/auth/signup">Sign Up</Link>
             </Button>
           </div>
         </div>
