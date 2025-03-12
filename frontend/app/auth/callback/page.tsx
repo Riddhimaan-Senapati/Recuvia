@@ -28,7 +28,7 @@ export default function AuthCallback() {
       } finally {
         // Redirect to home page whether successful or not
         // User will be authenticated or not based on the session state
-        router.push('/');
+        router.push('/main');
         router.refresh();
       }
     };

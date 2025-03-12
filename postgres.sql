@@ -72,9 +72,17 @@ ON item_images FOR SELECT USING (true);
 CREATE POLICY "Public can view profiles" 
 ON profiles FOR SELECT USING (true);
 
--- Allow authenticated users to insert their own items
-CREATE POLICY "Users can insert items" 
-ON items FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- allow authenticated users to insert their own items
+CREATE POLICY "Users can insert item images"
+ON item_images FOR INSERT WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM items WHERE
+    items.id = item_images.item_id AND
+    items.user_id = auth.uid()
+  )
+);
+
 
 -- Allow users to insert images for their items
 CREATE POLICY "Users can insert item images" 
