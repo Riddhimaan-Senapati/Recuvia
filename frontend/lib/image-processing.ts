@@ -1,7 +1,7 @@
 // lib/image-processing.ts
 
 import sharp from 'sharp';
-import * as tf from '@tensorflow/tfjs-node';
+import * as tf from '@tensorflow/tfjs';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
@@ -159,8 +159,8 @@ export async function generateImageEmbedding(imageBuffer: Buffer): Promise<numbe
  * @returns Array of matching items with similarity scores
  */
 export async function searchSimilarImages(
-  embedding: number[], 
-  threshold = 0.7, 
+  embedding: number[],
+  threshold = 0.7,
   limit = 10
 ): Promise<any[]> {
   try {

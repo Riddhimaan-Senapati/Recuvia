@@ -1,3 +1,4 @@
+// app/main/page.tsx
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -10,6 +11,7 @@ import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Image from 'next/image';
+import { uploadItemWithImage, searchSimilarImagesViaAPI } from '@/lib/client-api';
 
 export default function MainPage() {
   const [items, setItems] = useState([]);
@@ -86,22 +88,14 @@ export default function MainPage() {
     setUploading(true);
     
     try {
-      const formData = new FormData();
-      formData.append('title', title);
-      formData.append('description', description);
-      formData.append('location', location);
-      formData.append('type', activeTab);
-      formData.append('image', imageFile);
-      
-      const response = await fetch('/api/items', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload item');
-      }
+      // Use client-api instead of direct fetch
+      const result = await uploadItemWithImage(
+        title,
+        description,
+        location,
+        activeTab,
+        imageFile
+      );
       
       // Reset form
       setTitle('');
@@ -160,19 +154,10 @@ export default function MainPage() {
     setSearchLoading(true);
     
     try {
-      const formData = new FormData();
-      formData.append('image', searchImage);
+      // Use client-api instead of direct fetch
+      const { items } = await searchSimilarImagesViaAPI(searchImage);
       
-      const response = await fetch('/api/search/image', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) throw new Error(data.error || 'Search failed');
-      
-      setItems(data.items || []);
+      setItems(items || []);
       if (activeTab !== 'lost') setActiveTab('lost');
     } catch (error) {
       console.error('Error searching by image:', error);

@@ -91,7 +91,7 @@ export async function POST(req: Request) {
     
     // Upload to storage
     const imageUrl = await uploadImageToStorage(
-      processedImage.buffer, 
+      processedImage.buffer,
       processedImage.storagePath
     );
     
