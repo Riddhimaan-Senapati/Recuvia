@@ -1,6 +1,7 @@
 // app/api/search/image/route.ts
 import { NextResponse } from 'next/server';
-import { milvusClient, COLLECTION_NAME, generateImageEmbedding, initMilvusCollection } from '@/lib/milvus';
+import { milvusClient, COLLECTION_NAME, initMilvusCollection } from '@/lib/milvus';
+import { generateImageEmbedding } from '@/lib/tensorflow-server';
 
 export const dynamic = 'force-dynamic';
 
