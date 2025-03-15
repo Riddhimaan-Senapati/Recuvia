@@ -1,7 +1,7 @@
 // lib/image-processing.ts
 
 import sharp from 'sharp';
-import * as tf from '@tensorflow/tfjs';
+import * as tf from '@tensorflow/tfjs-node';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
