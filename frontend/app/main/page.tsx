@@ -1,4 +1,4 @@
-// app/main/page.tsx
+// app/page.tsx
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -11,7 +11,6 @@ import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Image from 'next/image';
-import { uploadItemWithImage, searchSimilarImagesViaAPI } from '@/lib/client-api';
 
 export default function MainPage() {
   const [items, setItems] = useState([]);
@@ -88,14 +87,22 @@ export default function MainPage() {
     setUploading(true);
     
     try {
-      // Use client-api instead of direct fetch
-      const result = await uploadItemWithImage(
-        title,
-        description,
-        location,
-        activeTab,
-        imageFile
-      );
+      const formData = new FormData();
+      formData.append('title', title);
+      formData.append('description', description);
+      formData.append('location', location);
+      formData.append('type', activeTab);
+      formData.append('image', imageFile);
+      
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload item');
+      }
       
       // Reset form
       setTitle('');
@@ -118,7 +125,7 @@ export default function MainPage() {
   
   const handleTextSearch = async () => {
     if (!searchQuery.trim()) {
-      fetchItems(activeTab); // Reset to regular view
+      fetchItems('lost'); // Reset to regular view
       return;
     }
     
@@ -132,7 +139,7 @@ export default function MainPage() {
         },
         body: JSON.stringify({
           query: searchQuery,
-          filters: { type: activeTab },
+          filters: { type: 'lost' },
         }),
       });
       
@@ -154,11 +161,19 @@ export default function MainPage() {
     setSearchLoading(true);
     
     try {
-      // Use client-api instead of direct fetch
-      const { items } = await searchSimilarImagesViaAPI(searchImage);
+      const formData = new FormData();
+      formData.append('image', searchImage);
       
-      setItems(items || []);
-      if (activeTab !== 'lost') setActiveTab('lost');
+      const response = await fetch('/api/search/image', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) throw new Error(data.error || 'Search failed');
+      
+      setItems(data.items || []);
     } catch (error) {
       console.error('Error searching by image:', error);
     } finally {
@@ -195,11 +210,11 @@ export default function MainPage() {
             <TabsTrigger value="found" className="w-1/2">Found Items</TabsTrigger>
           </TabsList>
           
-          {/* Upload Section */}
-          {user && (
+          {/* Upload Section - Only shown in Found tab */}
+          {user && activeTab === 'found' && (
             <Card className="p-6 mb-8">
               <h2 className="text-xl font-semibold mb-4">
-                Upload {activeTab === 'lost' ? 'a Lost' : 'a Found'} Item
+                Upload a Found Item
               </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -228,7 +243,7 @@ export default function MainPage() {
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     required
-                    placeholder="Where was this item lost/found?"
+                    placeholder="Where was this item found?"
                   />
                 </div>
                 
@@ -268,65 +283,67 @@ export default function MainPage() {
                   disabled={uploading || !imageFile}
                   className="w-full"
                 >
-                  {uploading ? 'Uploading...' : `Upload ${activeTab === 'lost' ? 'Lost' : 'Found'} Item`}
+                  {uploading ? 'Uploading...' : 'Upload Found Item'}
                 </Button>
               </form>
             </Card>
           )}
           
-          {/* Search Section */}
-          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex gap-2">
-              <Input 
-                placeholder="Search items..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleTextSearch()}
-              />
-              <Button onClick={handleTextSearch}>
-                <SearchIcon className="mr-2 h-4 w-4" />
-                Search
-              </Button>
-            </div>
-            
-            <div className="flex gap-2">
-              <div 
-                className="border rounded-md flex-1 flex items-center px-3 cursor-pointer"
-                onClick={() => searchFileInputRef.current?.click()}
-              >
-                {searchImagePreview ? (
-                  <div className="relative h-10 w-10 mr-2">
-                    <Image
-                      src={searchImagePreview}
-                      alt="Search"
-                      fill
-                      className="object-cover rounded"
-                    />
-                  </div>
-                ) : (
-                  <ImageIcon className="mr-2 h-4 w-4 text-gray-400" />
-                )}
-                <span className="text-gray-500">
-                  {searchImagePreview ? 'Image selected' : 'Upload image to search'}
-                </span>
-                <input
-                  type="file"
-                  ref={searchFileInputRef}
-                  onChange={handleSearchImageChange}
-                  accept="image/*"
-                  className="hidden"
+          {/* Search Section - Only shown in Lost tab */}
+          {activeTab === 'lost' && (
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Search lost items..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleTextSearch()}
                 />
+                <Button onClick={handleTextSearch}>
+                  <SearchIcon className="mr-2 h-4 w-4" />
+                  Search
+                </Button>
               </div>
-              <Button 
-                onClick={handleImageSearch}
-                disabled={!searchImage || searchLoading}
-              >
-                {searchLoading ? 'Searching...' : 'Find Similar'}
-              </Button>
+              
+              <div className="flex gap-2">
+                <div 
+                  className="border rounded-md flex-1 flex items-center px-3 cursor-pointer"
+                  onClick={() => searchFileInputRef.current?.click()}
+                >
+                  {searchImagePreview ? (
+                    <div className="relative h-10 w-10 mr-2">
+                      <Image
+                        src={searchImagePreview}
+                        alt="Search"
+                        fill
+                        className="object-cover rounded"
+                      />
+                    </div>
+                  ) : (
+                    <ImageIcon className="mr-2 h-4 w-4 text-gray-400" />
+                  )}
+                  <span className="text-gray-500">
+                    {searchImagePreview ? 'Image selected' : 'Upload image to search'}
+                  </span>
+                  <input
+                    type="file"
+                    ref={searchFileInputRef}
+                    onChange={handleSearchImageChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                </div>
+                <Button 
+                  onClick={handleImageSearch}
+                  disabled={!searchImage || searchLoading}
+                >
+                  {searchLoading ? 'Searching...' : 'Find Similar'}
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
           
-          {/* Items Grid */}
+          {/* Lost Items Tab */}
           <TabsContent value="lost">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {loading ? (
@@ -347,7 +364,7 @@ export default function MainPage() {
                     <h3 className="font-semibold">{item.title}</h3>
                     <p className="text-sm text-gray-500">Location: {item.location}</p>
                     {/* Display the email from profiles */}
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 font-medium">
                       Reported by: {item.profiles?.email || "Unknown user"}
                     </p>
                     {item.description && (
@@ -361,6 +378,7 @@ export default function MainPage() {
             </div>
           </TabsContent>
           
+          {/* Found Items Tab */}
           <TabsContent value="found">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {loading ? (
@@ -381,7 +399,7 @@ export default function MainPage() {
                     <h3 className="font-semibold">{item.title}</h3>
                     <p className="text-sm text-gray-500">Location: {item.location}</p>
                     {/* Display the email from profiles */}
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 font-medium">
                       Found by: {item.profiles?.email || "Unknown user"}
                     </p>
                     {item.description && (

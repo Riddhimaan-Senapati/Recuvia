@@ -7,7 +7,7 @@ const nextConfig = {
   images: { unoptimized: true },
   webpack: (config, { isServer }) => {
     if (!isServer) {
-      // Exclude problematic node_modules
+      // Prevent webpack from processing Node.js modules
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
@@ -22,11 +22,11 @@ const nextConfig = {
         net: false,
         tls: false,
       };
-
-      // Add HTML loader with explicit exclusion
+      
+      // Add a rule to ignore HTML files in node_modules
       config.module.rules.push({
         test: /\.html$/,
-        include: /node_modules\/@mapbox\/node-pre-gyp/,
+        include: /node_modules/,
         use: 'null-loader',
       });
     }
