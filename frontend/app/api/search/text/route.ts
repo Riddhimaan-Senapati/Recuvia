@@ -19,9 +19,13 @@ export async function POST(req: Request) {
     
     // Build expression for text search
     // Note: Milvus doesn't have full-text search, so we use basic string matching
+    // Sanitize user input to prevent injection
+    const sanitizedQuery = query.replace(/['"%\\]/g, '');
+    const searchExpr = `title like '%${sanitizedQuery}%' or description like '%${sanitizedQuery}%'`;
     const searchExpr = `title like '%${query}%' or description like '%${query}%'`;
     const typeExpr = filters?.type ? `and item_type = '${filters.type}'` : '';
     const expr = `${searchExpr} ${typeExpr}`;
+
     
     // Search in Milvus
     const searchResults = await milvusClient.query({

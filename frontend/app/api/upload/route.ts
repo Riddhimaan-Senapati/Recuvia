@@ -64,18 +64,19 @@ export async function POST(req: Request) {
     
     // Insert into Milvus
     const milvusData = await milvusClient.insert({
-      collection_name: COLLECTION_NAME,
-      fields_data: [{
-        image_embedding: embedding,
-        title,
-        description,
-        location,
-        submitter_email: user.email,
-        image_url: publicUrl,
-        item_type: type,
-        created_at: new Date().toISOString()
-      }]
-    });
+ collection_name: COLLECTION_NAME,
+ fields_data: [{
+    title,
+    description,
+    location,
+    submitter_email: user.email,
+    image_url: publicUrl,
+    item_type: type,
+    created_at: new Date().toISOString(),
+    image_embedding: embedding // Ensure correct field name
+  }]
+});
+
     
     return NextResponse.json({
       success: true,

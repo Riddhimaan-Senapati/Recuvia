@@ -30,11 +30,11 @@ export async function POST(req: Request) {
     // Search similar items in Milvus
     const searchResults = await milvusClient.search({
       collection_name: COLLECTION_NAME,
-      vector: embedding,
-      field_name: 'image_embedding',
+      data: [embedding], // Wrap embedding in array
+      anns_field: 'image_embedding', // Specify vector field
       limit: 10,
       metric_type: 'COSINE',
-      output_fields: ['id', 'title', 'description', 'location', 'submitter_email', 'image_url', 'item_type', 'created_at'],
+      output_fields: ['id', 'title', 'description', /* ... */],
     });
     
     // Format results
