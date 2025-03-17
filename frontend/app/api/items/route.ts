@@ -40,8 +40,9 @@ export async function GET(req: Request) {
     return NextResponse.json(items);
   } catch (error) {
     console.error('Error fetching items:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     return NextResponse.json(
-      { error: 'Something went wrong' },
+      { error: 'Something went wrong', details: error.message },
       { status: 500 }
     );
   }

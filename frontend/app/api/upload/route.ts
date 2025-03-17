@@ -2,7 +2,8 @@
 import { NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { milvusClient, COLLECTION_NAME, generateImageEmbedding, initMilvusCollection } from '@/lib/milvus';
+import { milvusClient, COLLECTION_NAME, initMilvusCollection } from '@/lib/milvus';
+//import { generateImageEmbedding } from '@/lib/tensorflow-server';
 
 export const dynamic = 'force-dynamic';
 
