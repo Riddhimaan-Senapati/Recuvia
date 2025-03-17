@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { ImageIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Separator } from '@/components/ui/separator';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export default function SignIn() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function SignIn() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const supabase = createClientComponentClient();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,10 +31,12 @@ export default function SignIn() {
       });
 
       if (error) throw error;
-      router.push('/');
+
+      router.push('/main');
       router.refresh();
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
+      console.error('Error signing in:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred during sign in');
     } finally {
       setLoading(false);
     }
@@ -138,7 +142,7 @@ export default function SignIn() {
 
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Don't have an account?{' '}
-          <Link href="/auth/sign-up" className="text-found hover:underline">
+          <Link href="/auth/signup" className="text-found hover:underline">
             Sign Up
           </Link>
         </p>

@@ -4,8 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ImageIcon, SearchIcon, Upload } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
+  const { user, signOut } = useAuth();
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-muted">
       {/* Navigation */}
@@ -16,15 +19,32 @@ export default function Home() {
             <span className="text-xl font-bold">FindR</span>
           </div>
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" asChild>
-              <Link href="/main">Browse Items</Link>
-            </Button>
-            <Button variant="ghost" asChild>
-              <Link href="/auth/signin">Sign In</Link>
-            </Button>
-            <Button className="bg-found text-found-foreground hover:bg-found/90" asChild>
-              <Link href="/auth/signup">Sign Up</Link>
-            </Button>
+            {user ? (
+              <div className="flex items-center gap-4">
+                <span className="text-gray-700">{user.email}</span>
+                <Button 
+                  variant="destructive" 
+                  onClick={signOut}
+                >
+                  Sign Out
+                </Button>
+                <Button className="bg-found text-found-foreground hover:bg-found/90" asChild>
+                  <Link href="/main">Go to Dashboard</Link>
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link href="/main">Browse Items</Link>
+                </Button>
+                <Button variant="ghost" asChild>
+                  <Link href="/auth/signin">Sign In</Link>
+                </Button>
+                <Button className="bg-found text-found-foreground hover:bg-found/90" asChild>
+                  <Link href="/auth/signup">Sign Up</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -40,18 +60,29 @@ export default function Home() {
             Simply upload a photo and we'll search our database of found items.
           </p>
           <div className="mt-12 flex flex-col gap-4 sm:flex-row">
-            <Button size="lg" className="gap-2 bg-lost text-lost-foreground hover:bg-lost/90" asChild>
-              <Link href="/main">
-                <Upload className="h-5 w-5" />
-                Upload Lost Item
-              </Link>
-            </Button>
-            <Button size="lg" className="gap-2 bg-found text-found-foreground hover:bg-found/90" asChild>
-              <Link href="/main">
-                <SearchIcon className="h-5 w-5" />
-                Browse Found Items
-              </Link>
-            </Button>
+            {user ? (
+              <Button size="lg" className="gap-2 bg-found text-found-foreground hover:bg-found/90" asChild>
+                <Link href="/main">
+                  <SearchIcon className="h-5 w-5" />
+                  Go to Dashboard
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button size="lg" className="gap-2 bg-lost text-lost-foreground hover:bg-lost/90" asChild>
+                  <Link href="/main">
+                    <Upload className="h-5 w-5" />
+                    Upload Lost Item
+                  </Link>
+                </Button>
+                <Button size="lg" className="gap-2 bg-found text-found-foreground hover:bg-found/90" asChild>
+                  <Link href="/main">
+                    <SearchIcon className="h-5 w-5" />
+                    Browse Found Items
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </section>

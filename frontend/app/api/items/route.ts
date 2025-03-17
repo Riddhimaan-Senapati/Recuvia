@@ -1,6 +1,11 @@
 // app/api/items/route.ts
 import { NextResponse } from 'next/server';
-import { milvusClient, COLLECTION_NAME, initMilvusCollection } from '@/lib/milvus';
+import { 
+  milvusClient, 
+  COLLECTION_NAME, 
+  initMilvusCollection 
+} from '@/lib/milvus'; // Correct named exports
+
 
 export const dynamic = 'force-dynamic';
 
