@@ -12,11 +12,23 @@ export const MILVUS_PASSWORD = process.env.MILVUS_PASSWORD;
 export const milvusClient = new MilvusClient({
   address: MILVUS_ADDRESS,
   token: MILVUS_TOKEN,
-  /*ssl: true,
+  ssl: true,
+  /*
   username: MILVUS_USERNAME,
   password: MILVUS_PASSWORD,
   */
 });
+
+export async function testMilvusConnection() {
+  try {
+    const listCollections = await milvusClient.listCollections();
+    console.log("Connected to Milvus successfully. Collections:", listCollections);
+    return true;
+  } catch (error) {
+    console.error("Failed to connect to Milvus:", error);
+    return false;
+  }
+}
 
 // Schema definition
 const COLLECTION_FIELDS = [

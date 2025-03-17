@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server';
 import { 
   milvusClient, 
   COLLECTION_NAME, 
-  initMilvusCollection 
+  initMilvusCollection,
+  testMilvusConnection
 } from '@/lib/milvus'; // Correct named exports
 
 
@@ -11,6 +12,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   try {
+
+    await testMilvusConnection();
     await initMilvusCollection();
     
     const { searchParams } = new URL(req.url);
