@@ -13,6 +13,11 @@ export const milvusClient = new MilvusClient({
   address: MILVUS_ADDRESS,
   token: MILVUS_TOKEN,
   ssl: true,
+  channelOptions: {
+    // starter cluster will throw rejected by server because of excess ping, so we need to adjust the ping interval
+    "grpc.keepalive_time_ms": 40000, // Adjust the time interval between pings
+    "grpc.keepalive_timeout_ms": 5000, // Adjust the time to wait for a response to a ping
+  },
   /*
   username: MILVUS_USERNAME,
   password: MILVUS_PASSWORD,

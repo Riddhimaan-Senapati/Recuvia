@@ -48,8 +48,9 @@ export async function POST(req: Request) {
       .upload(fileName, buffer);
     
     if (uploadError) {
+      console.error('Error details:', JSON.stringify(uploadError, null, 2));
       return NextResponse.json(
-        { error: 'Failed to upload image' },
+        { error: 'Failed to upload image', details: uploadError.message },
         { status: 500 }
       );
     }
