@@ -10,6 +10,7 @@ import { ImageIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Separator } from '@/components/ui/separator';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function SignIn() {
   const router = useRouter();
@@ -58,6 +59,9 @@ export default function SignIn() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-muted flex items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <Card className="w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-8">
           <Link href="/" className="flex items-center space-x-2 mb-8">

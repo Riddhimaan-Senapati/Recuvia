@@ -5,6 +5,8 @@ import { Card } from '@/components/ui/card';
 import { ImageIcon, SearchIcon, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+
 
 export default function Home() {
   const { user, signOut } = useAuth();
@@ -21,7 +23,8 @@ export default function Home() {
           <div className="flex items-center space-x-4">
             {user ? (
               <div className="flex items-center gap-4">
-                <span className="text-gray-700">{user.email}</span>
+                <span className="text-gray-700 dark:text-gray-300">{user.email}</span>
+                <ThemeToggle />
                 <Button 
                   variant="destructive" 
                   onClick={signOut}
@@ -34,6 +37,7 @@ export default function Home() {
               </div>
             ) : (
               <>
+                <ThemeToggle />
                 <Button variant="ghost" asChild>
                   <Link href="/main">Browse Items</Link>
                 </Button>

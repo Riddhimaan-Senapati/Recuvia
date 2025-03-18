@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { ImageIcon } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Separator } from '@/components/ui/separator';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function SignUp() {
   const router = useRouter();
@@ -55,6 +56,9 @@ export default function SignUp() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-muted flex items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <Card className="w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-8">
           <Link href="/" className="flex items-center space-x-2 mb-8">
@@ -139,7 +143,7 @@ export default function SignUp() {
 
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Already have an account?{' '}
-          <Link href="/auth/sign-in" className="text-found hover:underline">
+          <Link href="/auth/signin" className="text-found hover:underline">
             Sign In
           </Link>
         </p>

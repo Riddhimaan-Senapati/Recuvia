@@ -13,6 +13,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function MainPage() {
   const [items, setItems] = useState([]);
@@ -200,7 +201,8 @@ export default function MainPage() {
         <div className="space-x-4">
           {user ? (
             <div className="flex items-center gap-4">
-              <span className="text-gray-700">{user.email}</span>
+              <span className="text-gray-700 dark:text-gray-300">{user.email}</span>
+              <ThemeToggle />
               <Button 
                 variant="destructive" 
                 onClick={handleSignOut}
@@ -210,6 +212,7 @@ export default function MainPage() {
             </div>
           ) : (
             <>
+              <ThemeToggle />
               <Link href="/auth/signin">
                 <Button variant="outline">Sign In</Button>
               </Link>
