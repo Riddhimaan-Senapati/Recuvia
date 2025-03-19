@@ -17,7 +17,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function MainPage() {
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('found');
   const [searchQuery, setSearchQuery] = useState('');
   const { user, loading: authLoading, signOut } = useAuth();
@@ -37,28 +37,6 @@ export default function MainPage() {
   const searchFileInputRef = useRef(null);
   const supabase = createClientComponentClient();
   const router = useRouter();
-  
-  useEffect(() => {
-    if (!authLoading && user) {
-      fetchItems(activeTab);
-    }
-  }, [activeTab, authLoading, user]);
-  
-  const fetchItems = async (type) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/items?type=${type}`);
-      const data = await response.json();
-      
-      if (!response.ok) throw new Error(data.error || 'Failed to fetch items');
-      
-      setItems(data || []);
-    } catch (error) {
-      console.error('Error fetching items:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
   
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -89,19 +67,20 @@ export default function MainPage() {
     try {
       const formData = new FormData();
       formData.append('title', title);
-      formData.append('description', description);
+      formData.append('description', description || '');
       formData.append('location', location);
       formData.append('type', activeTab);
-      formData.append('image', imageFile);
+      formData.append('image', imageFile); // This is the File object from the file input
       
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/api/milvus/upload', {
         method: 'POST',
         body: formData,
       });
       
+      const result = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload item');
+        throw new Error(result.error || 'Failed to upload item');
       }
       
       // Reset form
@@ -110,9 +89,6 @@ export default function MainPage() {
       setLocation('');
       setImageFile(null);
       setImagePreview(null);
-      
-      // Refresh items
-      fetchItems(activeTab);
       
       alert('Item uploaded successfully!');
     } catch (error) {
@@ -125,14 +101,14 @@ export default function MainPage() {
   
   const handleTextSearch = async () => {
     if (!searchQuery.trim()) {
-      fetchItems('lost'); // Reset to regular view
+      setItems([]);
       return;
     }
     
     setLoading(true);
     
     try {
-      const response = await fetch('/api/search/text', {
+      const response = await fetch('/api/milvus/search/text', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -150,6 +126,7 @@ export default function MainPage() {
       setItems(data.items || []);
     } catch (error) {
       console.error('Error searching:', error);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -159,12 +136,13 @@ export default function MainPage() {
     if (!searchImage) return;
     
     setSearchLoading(true);
+    setLoading(true);
     
     try {
       const formData = new FormData();
-      formData.append('image', searchImage);
+      formData.append('image', searchImage); // This is the File object from the file input
       
-      const response = await fetch('/api/search/image', {
+      const response = await fetch('/api/milvus/search/image', {
         method: 'POST',
         body: formData,
       });
@@ -176,8 +154,10 @@ export default function MainPage() {
       setItems(data.items || []);
     } catch (error) {
       console.error('Error searching by image:', error);
+      setItems([]);
     } finally {
       setSearchLoading(false);
+      setLoading(false);
     }
   };
   
@@ -371,7 +351,7 @@ export default function MainPage() {
             <TabsContent value="lost">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {loading ? (
-                  <p>Loading...</p>
+                  <p className="col-span-3 text-center py-8">Searching for items...</p>
                 ) : items.length > 0 ? (
                   items.map((item) => (
                     <Card key={item.id} className="p-4 flex flex-col h-full">
@@ -386,54 +366,37 @@ export default function MainPage() {
                         </div>
                       )}
                       <h3 className="font-semibold">{item.title}</h3>
-                      <p className="text-sm text-gray-500">Location: {item.location}</p>
-                      {/* Display the email from profiles */}
-                      <p className="text-sm text-gray-500 font-medium">
-                        Reported by: {item.profiles?.email || "Unknown user"}
-                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Location: {item.location || "Unknown"}</p>
+                      {item.profiles && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                          Reported by: {item.profiles.email || "Unknown user"}
+                        </p>
+                      )}
                       {item.description && (
-                        <p className="text-sm text-gray-600 mt-2 line-clamp-2">{item.description}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 line-clamp-2">{item.description}</p>
                       )}
                     </Card>
                   ))
                 ) : (
-                  <p className="col-span-3 text-center py-8 text-gray-500">No lost items found. Try broadening your search.</p>
+                  <p className="col-span-3 text-center py-8 text-gray-500 dark:text-gray-400">
+                    {searchQuery || searchImagePreview 
+                      ? "No matching items found. Try a different search." 
+                      : "Use the search options above to find lost items."}
+                  </p>
                 )}
               </div>
             </TabsContent>
             
             {/* Found Items Tab */}
             <TabsContent value="found">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {loading ? (
-                  <p>Loading...</p>
-                ) : items.length > 0 ? (
-                  items.map((item) => (
-                    <Card key={item.id} className="p-4 flex flex-col h-full">
-                      {item.item_images && item.item_images[0] && (
-                        <div className="relative h-48 w-full mb-3">
-                          <Image
-                            src={item.item_images[0].image_url}
-                            alt={item.title}
-                            fill
-                            className="object-cover rounded"
-                          />
-                        </div>
-                      )}
-                      <h3 className="font-semibold">{item.title}</h3>
-                      <p className="text-sm text-gray-500">Location: {item.location}</p>
-                      {/* Display the email from profiles */}
-                      <p className="text-sm text-gray-500 font-medium">
-                        Found by: {item.profiles?.email || "Unknown user"}
-                      </p>
-                      {item.description && (
-                        <p className="text-sm text-gray-600 mt-2 line-clamp-2">{item.description}</p>
-                      )}
-                    </Card>
-                  ))
-                ) : (
-                  <p className="col-span-3 text-center py-8 text-gray-500">No found items available.</p>
-                )}
+              <div className="text-center py-8">
+                <h3 className="text-xl font-semibold mb-4">Found Items Repository</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                  Use the form above to upload items you've found.
+                </p>
+                <p className="text-gray-500 dark:text-gray-400">
+                  Your uploaded items will be available for others to search when they're looking for lost belongings.
+                </p>
               </div>
             </TabsContent>
           </Tabs>
