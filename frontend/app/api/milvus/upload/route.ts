@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     // FIX: Properly await cookies before creating the Supabase client
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     
     // 1. Get authenticated user
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
