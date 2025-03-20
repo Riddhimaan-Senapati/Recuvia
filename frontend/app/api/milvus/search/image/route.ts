@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { milvus, COLLECTION_NAME, VECTOR_FIELD_NAME } from '@/app/utils/milvus';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import os from 'os';
@@ -54,52 +52,39 @@ export async function POST(req: NextRequest) {
     const searchResult = await milvus.search({
       collection_name: COLLECTION_NAME,
       vector: imageVector,
-      output_fields: ['imageId', 'url', 'aiDescription', 'photoDescription', 'blurHash', 'ratio'],
+      output_fields: [
+        'imageId', 
+        'url', 
+        'aiDescription', 
+        'photoDescription', 
+        'submitter_email',
+        'location',
+        'item_type',
+        'created_at',
+        'blurHash', 
+        'ratio'
+      ],
       limit: 20,
     });
     
-    if (!searchResult) {
+    if (!searchResult || !searchResult.results || searchResult.results.length === 0) {
       return NextResponse.json({ items: [] });
     }
     
-    // Get the list of item IDs from Milvus results
-    const itemIds = searchResult.results.map(item => item.imageId);
-    
-    // Fetch additional details from Supabase if there are results
-    if (itemIds.length > 0) {
-      const supabase = createRouteHandlerClient({ cookies });
-      const { data: items, error } = await supabase
-        .from('items')
-        .select(`
-          *,
-          item_images (*),
-          profiles (email)
-        `)
-        .in('id', itemIds);
-      
-      if (!error && items && items.length > 0) {
-        // Merge Supabase data with Milvus results
-        const mergedResults = items.map(item => {
-          const milvusItem = searchResult.results.find(r => r.imageId === item.id);
-          return {
-            ...item,
-            score: milvusItem ? milvusItem.score : 0
-          };
-        }).sort((a, b) => b.score - a.score); // Sort by score (highest first)
-        
-        return NextResponse.json({ items: mergedResults });
-      }
-    }
-    
-    // Fallback to just using Milvus results if Supabase fetch fails or returns no data
+    // Format the results for the frontend
     const results = searchResult.results.map(item => ({
       id: item.imageId,
       title: item.aiDescription,
       description: item.photoDescription,
+      location: item.location || "Unknown",
+      type: item.item_type,
+      created_at: item.created_at,
+      profiles: {
+        email: item.submitter_email
+      },
       item_images: [{
         image_url: item.url
       }],
-      location: "Unknown", // Default location
       score: item.score
     }));
     

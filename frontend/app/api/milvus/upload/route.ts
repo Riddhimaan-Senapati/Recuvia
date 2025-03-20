@@ -14,8 +14,8 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    // FIX: Properly await cookies before creating the Supabase client
-    const cookieStore = await cookies();
+    // Get cookie store
+    const cookieStore = cookies();
     
     // 1. Get authenticated user
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
@@ -43,36 +43,20 @@ export async function POST(req: NextRequest) {
     // 3. Generate a unique ID for the item
     const itemId = uuidv4();
     
-    // 4. Upload image to Supabase Storage
+    // 4. Create a base64 image URL to store in Milvus
     const imageBuffer = await image.arrayBuffer();
     const imageBytes = new Uint8Array(imageBuffer);
+    const base64 = Buffer.from(imageBytes).toString('base64');
+    const mimeType = image.type || 'image/jpeg';
+    const imageUrl = `data:${mimeType};base64,${base64}`;
     
-    const fileName = `${itemId}-${image.name.replace(/\s/g, '_')}`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('item-images')
-      .upload(fileName, imageBytes);
-    
-    if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      return NextResponse.json(
-        { error: 'Failed to upload image' },
-        { status: 500 }
-      );
-    }
-    
-    // 5. Get the public URL for the uploaded image
-    const { data: urlData } = supabase.storage
-      .from('item-images')
-      .getPublicUrl(fileName);
-    
-    const imageUrl = urlData?.publicUrl;
-    
-    // 6. Save the uploaded image temporarily to process with transformers
+    // 5. Save the uploaded image temporarily to process with transformers
     const tempDir = os.tmpdir();
-    const tempFilePath = join(tempDir, fileName);
+    const tempFileName = `${itemId}-${image.name.replace(/\s/g, '_')}`;
+    const tempFilePath = join(tempDir, tempFileName);
     await fs.writeFile(tempFilePath, imageBytes);
     
-    // 7. Generate image embedding
+    // 6. Generate image embedding
     // Initialize the model and processor
     const model_id = "Xenova/clip-vit-base-patch16";
     const processor = await AutoProcessor.from_pretrained(model_id);
@@ -88,47 +72,8 @@ export async function POST(req: NextRequest) {
     
     // Clean up temporary file
     await fs.unlink(tempFilePath);
-    
-    // 8. Save item data to Supabase
-    const { data: itemData, error: itemError } = await supabase
-      .from('items')
-      .insert({
-        id: itemId,
-        title,
-        description,
-        location,
-        type,
-        user_id: session.user.id,
-      })
-      .select()
-      .single();
-    
-    if (itemError) {
-      console.error('Database error:', itemError);
-      return NextResponse.json(
-        { error: 'Failed to save item data' },
-        { status: 500 }
-      );
-    }
-    
-    // 9. Save image metadata to Supabase
-    const { error: imageDbError } = await supabase
-      .from('item_images')
-      .insert({
-        item_id: itemId,
-        image_url: imageUrl,
-        storage_path: fileName,
-      });
-    
-    if (imageDbError) {
-      console.error('Image metadata error:', imageDbError);
-      return NextResponse.json(
-        { error: 'Failed to save image metadata' },
-        { status: 500 }
-      );
-    }
-    
-    // 10. Insert into Milvus using the provided milvus utility
+      
+    // 7. Insert into Milvus using the provided milvus utility
     await milvus.insert({
       collection_name: COLLECTION_NAME,
       fields_data: [{
@@ -137,10 +82,24 @@ export async function POST(req: NextRequest) {
         url: imageUrl,
         aiDescription: title,
         photoDescription: description || "",
+        location: location,
+        item_type: type,
+        user_email: session.user.email,
+        created_at: new Date().toISOString(),
         blurHash: "",
         ratio: 1.0, // Default aspect ratio
       }],
     });
+    
+    const itemData = {
+      id: itemId,
+      title,
+      description,
+      location,
+      type,
+      user_email: session.user.email,
+      created_at: new Date().toISOString()
+    };
     
     return NextResponse.json({
       success: true,
