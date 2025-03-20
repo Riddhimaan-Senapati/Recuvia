@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     // Parse request body
-    const { query, filters = {} } = await req.json();
+    const { query } = await req.json();
     
     if (!query || typeof query !== 'string') {
       return NextResponse.json(
@@ -43,14 +43,11 @@ export async function POST(req: NextRequest) {
         'photoDescription', 
         'submitter_email',
         'location',
-        'item_type',
         'created_at',
         'blurHash', 
         'ratio'
       ],
       limit: 20,
-      // Add filter if specified (like item_type)
-      expr: filters.type ? `item_type = "${filters.type}"` : undefined,
     });
     
     if (!searchResult || !searchResult.results || searchResult.results.length === 0) {
@@ -63,7 +60,6 @@ export async function POST(req: NextRequest) {
       title: item.aiDescription,
       description: item.photoDescription,
       location: item.location || "Unknown",
-      type: item.item_type || "unknown",
       created_at: item.created_at,
       profiles: {
         email: item.submitter_email || "Unknown user"

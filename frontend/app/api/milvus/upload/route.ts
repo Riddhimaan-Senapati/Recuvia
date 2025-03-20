@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     // Get cookie store
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     
     // 1. Get authenticated user
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
@@ -30,10 +30,9 @@ export async function POST(req: NextRequest) {
     const title = formData.get('title') as string;
     const description = formData.get('description') as string || '';
     const location = formData.get('location') as string;
-    const type = formData.get('type') as string;
     const image = formData.get('image') as File;
     
-    if (!title || !location || !image || !type) {
+    if (!title || !location || !image) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -100,7 +99,6 @@ export async function POST(req: NextRequest) {
         aiDescription: title,
         photoDescription: description || "",
         location: location,
-        item_type: type,
         submitter_email: session.user.email,
         created_at: new Date().toISOString(),
         blurHash: "",
@@ -116,7 +114,6 @@ export async function POST(req: NextRequest) {
         title,
         description,
         location,
-        type,
         submitter_email: session.user.email,
         created_at: new Date().toISOString(),
         item_images: [{

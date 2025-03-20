@@ -59,7 +59,6 @@ export async function POST(req: NextRequest) {
         'photoDescription', 
         'submitter_email',
         'location',
-        'item_type',
         'created_at',
         'blurHash', 
         'ratio'
@@ -77,7 +76,6 @@ export async function POST(req: NextRequest) {
       title: item.aiDescription,
       description: item.photoDescription,
       location: item.location || "Unknown",
-      type: item.item_type,
       created_at: item.created_at,
       profiles: {
         email: item.submitter_email

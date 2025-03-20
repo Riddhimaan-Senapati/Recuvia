@@ -18,7 +18,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 export default function MainPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('found');
+  const [activeTab, setActiveTab] = useState('lost'); // Set lost as default tab
   const [searchQuery, setSearchQuery] = useState('');
   const { user, loading: authLoading, signOut } = useAuth();
   
@@ -69,8 +69,7 @@ export default function MainPage() {
       formData.append('title', title);
       formData.append('description', description || '');
       formData.append('location', location);
-      formData.append('type', activeTab);
-      formData.append('image', imageFile); // This is the File object from the file input
+      formData.append('image', imageFile);
       
       const response = await fetch('/api/milvus/upload', {
         method: 'POST',
@@ -115,7 +114,6 @@ export default function MainPage() {
         },
         body: JSON.stringify({
           query: searchQuery,
-          filters: { type: 'lost' },
         }),
       });
       
@@ -140,7 +138,7 @@ export default function MainPage() {
     
     try {
       const formData = new FormData();
-      formData.append('image', searchImage); // This is the File object from the file input
+      formData.append('image', searchImage);
       
       const response = await fetch('/api/milvus/search/image', {
         method: 'POST',
@@ -207,103 +205,44 @@ export default function MainPage() {
       {/* Main Content - Only show if user is authenticated */}
       {user ? (
         <main>
-          <Tabs defaultValue="found" value={activeTab} onValueChange={setActiveTab}>
+          {/* Tab Description Section */}
+          <div className="mb-6 text-center">
+            <p className="text-muted-foreground">
+              Use the <span className="font-semibold text-lost">Lost Items</span> tab to search for items you've lost.
+              Use the <span className="font-semibold text-found">Found Items</span> tab to upload items you've found.
+            </p>
+          </div>
+          
+          <Tabs defaultValue="lost" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="w-full mb-6">
-              <TabsTrigger value="lost" className="w-1/2">Lost Items</TabsTrigger>
-              <TabsTrigger value="found" className="w-1/2">Found Items</TabsTrigger>
+              <TabsTrigger 
+                value="lost" 
+                className="w-1/2 data-[state=active]:bg-lost data-[state=active]:text-lost-foreground"
+              >
+                Lost Items
+              </TabsTrigger>
+              <TabsTrigger 
+                value="found" 
+                className="w-1/2 data-[state=active]:bg-found data-[state=active]:text-found-foreground"
+              >
+                Found Items
+              </TabsTrigger>
             </TabsList>
             
-            {/* Upload Section - Only shown in Found tab */}
-            {activeTab === 'found' && (
-              <Card className="p-6 mb-8">
-                <h2 className="text-xl font-semibold mb-4">
-                  Upload a Found Item
-                </h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block mb-1">Title *</label>
-                    <Input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      required
-                      placeholder="Item name or brief description"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block mb-1">Description</label>
-                    <Textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      rows={3}
-                      placeholder="Provide more details about the item"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block mb-1">Location *</label>
-                    <Input
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      required
-                      placeholder="Where was this item found?"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block mb-1">Image *</label>
-                    <div 
-                      className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {imagePreview ? (
-                        <div className="relative h-48 w-full">
-                          <Image
-                            src={imagePreview}
-                            alt="Preview"
-                            fill
-                            className="object-contain"
-                          />
-                        </div>
-                      ) : (
-                        <div className="py-4">
-                          <Upload className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-                          <p>Click to upload an image (required)</p>
-                        </div>
-                      )}
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleImageChange}
-                        accept="image/*"
-                        className="hidden"
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    disabled={uploading || !imageFile || !title || !location}
-                    className="w-full"
-                  >
-                    {uploading ? 'Uploading...' : 'Upload Found Item'}
-                  </Button>
-                </form>
-              </Card>
-            )}
-            
-            {/* Search Section - Only shown in Lost tab */}
-            {activeTab === 'lost' && (
+            {/* Lost Items Tab */}
+            <TabsContent value="lost">
               <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex gap-2">
                   <Input 
-                    placeholder="Search lost items..." 
+                    placeholder="Search for your lost items..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleTextSearch()}
                   />
-                  <Button onClick={handleTextSearch}>
+                  <Button 
+                    onClick={handleTextSearch}
+                    className="bg-lost text-lost-foreground hover:bg-lost/90"
+                  >
                     <SearchIcon className="mr-2 h-4 w-4" />
                     Search
                   </Button>
@@ -340,15 +279,13 @@ export default function MainPage() {
                   <Button 
                     onClick={handleImageSearch}
                     disabled={!searchImage || searchLoading}
+                    className="bg-lost text-lost-foreground hover:bg-lost/90"
                   >
                     {searchLoading ? 'Searching...' : 'Find Similar'}
                   </Button>
                 </div>
               </div>
-            )}
-            
-            {/* Lost Items Tab */}
-            <TabsContent value="lost">
+              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {loading ? (
                   <p className="col-span-3 text-center py-8">Searching for items...</p>
@@ -379,7 +316,7 @@ export default function MainPage() {
                   <p className="col-span-3 text-center py-8 text-gray-500 dark:text-gray-400">
                     {searchQuery || searchImagePreview 
                       ? "No matching items found. Try a different search." 
-                      : "Use the search options above to find lost items."}
+                      : "Search for lost items using text or image above."}
                   </p>
                 )}
               </div>
@@ -387,13 +324,89 @@ export default function MainPage() {
             
             {/* Found Items Tab */}
             <TabsContent value="found">
-              <div className="text-center py-8">
-                <h3 className="text-xl font-semibold mb-4">Found Items Repository</h3>
-                <p className="text-gray-500 dark:text-gray-400 mb-4">
-                  Use the form above to upload items you've found.
-                </p>
+              <div className="mb-8">
+                <Card className="p-6 border-found/20">
+                  <h2 className="text-xl font-semibold mb-4 text-found">Upload a Found Item</h2>
+                  <p className="text-muted-foreground mb-4">
+                    Found something that might belong to someone else? Upload it here to help it find its way back home.
+                  </p>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                      <label className="block mb-1">Title *</label>
+                      <Input
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        required
+                        placeholder="Item name or brief description"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-1">Description</label>
+                      <Textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        rows={3}
+                        placeholder="Provide more details about the item"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-1">Location *</label>
+                      <Input
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        required
+                        placeholder="Where was this item found?"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-1">Image *</label>
+                      <div 
+                        className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {imagePreview ? (
+                          <div className="relative h-48 w-full">
+                            <Image
+                              src={imagePreview}
+                              alt="Preview"
+                              fill
+                              className="object-contain"
+                            />
+                          </div>
+                        ) : (
+                          <div className="py-4">
+                            <Upload className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                            <p>Click to upload an image (required)</p>
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleImageChange}
+                          accept="image/*"
+                          className="hidden"
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      type="submit" 
+                      disabled={uploading || !imageFile || !title || !location}
+                      className="w-full bg-found text-found-foreground hover:bg-found/90"
+                    >
+                      {uploading ? 'Uploading...' : 'Upload Found Item'}
+                    </Button>
+                  </form>
+                </Card>
+              </div>
+              
+              <div className="text-center py-4">
                 <p className="text-gray-500 dark:text-gray-400">
-                  Your uploaded items will be available for others to search when they're looking for lost belongings.
+                  Thank you for helping return lost items to their owners.
                 </p>
               </div>
             </TabsContent>

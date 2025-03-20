@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { ImageIcon } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/app/utils/supabase';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
