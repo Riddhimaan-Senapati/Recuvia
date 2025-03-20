@@ -63,10 +63,10 @@ export async function POST(req: NextRequest) {
       title: item.aiDescription,
       description: item.photoDescription,
       location: item.location || "Unknown",
-      type: item.item_type,
+      type: item.item_type || "unknown",
       created_at: item.created_at,
       profiles: {
-        email: item.submitter_email
+        email: item.submitter_email || "Unknown user"
       },
       item_images: [{
         image_url: item.url

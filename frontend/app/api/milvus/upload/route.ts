@@ -43,20 +43,36 @@ export async function POST(req: NextRequest) {
     // 3. Generate a unique ID for the item
     const itemId = uuidv4();
     
-    // 4. Create a base64 image URL to store in Milvus
+    // 4. Upload image to Supabase Storage
     const imageBuffer = await image.arrayBuffer();
     const imageBytes = new Uint8Array(imageBuffer);
-    const base64 = Buffer.from(imageBytes).toString('base64');
-    const mimeType = image.type || 'image/jpeg';
-    const imageUrl = `data:${mimeType};base64,${base64}`;
     
-    // 5. Save the uploaded image temporarily to process with transformers
+    const fileName = `${itemId}-${image.name.replace(/\s/g, '_')}`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('item-images')
+      .upload(fileName, imageBytes);
+    
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      return NextResponse.json(
+        { error: 'Failed to upload image' },
+        { status: 500 }
+      );
+    }
+    
+    // 5. Get the public URL for the uploaded image
+    const { data: urlData } = supabase.storage
+      .from('item-images')
+      .getPublicUrl(fileName);
+    
+    const imageUrl = urlData?.publicUrl;
+    
+    // 6. Save the uploaded image temporarily to process with transformers
     const tempDir = os.tmpdir();
-    const tempFileName = `${itemId}-${image.name.replace(/\s/g, '_')}`;
-    const tempFilePath = join(tempDir, tempFileName);
+    const tempFilePath = join(tempDir, fileName);
     await fs.writeFile(tempFilePath, imageBytes);
     
-    // 6. Generate image embedding
+    // 7. Generate image embedding
     // Initialize the model and processor
     const model_id = "Xenova/clip-vit-base-patch16";
     const processor = await AutoProcessor.from_pretrained(model_id);
@@ -73,7 +89,8 @@ export async function POST(req: NextRequest) {
     // Clean up temporary file
     await fs.unlink(tempFilePath);
       
-    // 7. Insert into Milvus using the provided milvus utility
+    // 8. Insert into Milvus using the provided milvus utility
+    // Make sure all necessary fields are included
     await milvus.insert({
       collection_name: COLLECTION_NAME,
       fields_data: [{
@@ -84,28 +101,30 @@ export async function POST(req: NextRequest) {
         photoDescription: description || "",
         location: location,
         item_type: type,
-        user_email: session.user.email,
+        submitter_email: session.user.email,
         created_at: new Date().toISOString(),
         blurHash: "",
         ratio: 1.0, // Default aspect ratio
       }],
     });
     
-    const itemData = {
-      id: itemId,
-      title,
-      description,
-      location,
-      type,
-      user_email: session.user.email,
-      created_at: new Date().toISOString()
-    };
-    
+    // Return success response with all item data
     return NextResponse.json({
       success: true,
       item: {
-        ...itemData,
-        image_url: imageUrl
+        id: itemId,
+        title,
+        description,
+        location,
+        type,
+        submitter_email: session.user.email,
+        created_at: new Date().toISOString(),
+        item_images: [{
+          image_url: imageUrl
+        }],
+        profiles: {
+          email: session.user.email
+        }
       }
     });
   } catch (error) {

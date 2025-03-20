@@ -367,11 +367,9 @@ export default function MainPage() {
                       )}
                       <h3 className="font-semibold">{item.title}</h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">Location: {item.location || "Unknown"}</p>
-                      {item.profiles && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-                          Reported by: {item.profiles.email || "Unknown user"}
-                        </p>
-                      )}
+                      <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                        Reported by: {item.profiles?.email || "Unknown user"}
+                      </p>
                       {item.description && (
                         <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 line-clamp-2">{item.description}</p>
                       )}
