@@ -126,19 +126,26 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t bg-muted/50">
-        <div className="container flex h-16 items-center justify-between">
-          <span className="text-sm text-muted-foreground">
-            © 2025 FindR. All rights reserved.
+        <div className="container flex flex-col md:flex-row h-auto md:h-16 py-4 md:py-0 items-center justify-between">
+          <div className="flex flex-col items-center md:items-start space-y-2 md:space-y-0">
+            <span className="text-sm text-muted-foreground">
+              © 2025 FindR. All rights reserved.
+            </span>
+          </div>
+          
+          <span className="text-sm text-muted-foreground my-2 md:my-0">
+            Built with ❤️ by Riddhimaan Senapati
           </span>
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm">
-              Privacy
+          
+          <div className="flex items-center space-x-4 mt-4 md:mt-0">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/privacy">Privacy</Link>
             </Button>
-            <Button variant="ghost" size="sm">
-              Terms
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/terms">Terms</Link>
             </Button>
-            <Button variant="ghost" size="sm">
-              Contact
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/contact">Contact</Link>
             </Button>
           </div>
         </div>
