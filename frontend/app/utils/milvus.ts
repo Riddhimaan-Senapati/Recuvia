@@ -3,6 +3,7 @@ import {
     MilvusClient,
     QueryReq,
     SearchSimpleReq,
+    DeleteReq,
   } from "@zilliz/milvus2-sdk-node";
   
   // Define constants for the Milvus client
@@ -102,6 +103,16 @@ import {
     public async insert(data: InsertReq) {
       try {
         const res = await this._client?.insert(data);
+        return res;
+      } catch (error) {
+        throw error;
+      }
+    }
+    
+    // Delete entities from a collection
+    public async deleteEntities(data: DeleteReq) {
+      try {
+        const res = await this._client?.delete(data);
         return res;
       } catch (error) {
         throw error;

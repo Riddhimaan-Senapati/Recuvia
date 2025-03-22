@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ImageIcon, SearchIcon, Upload } from 'lucide-react';
+import { ImageIcon, SearchIcon, Upload, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -32,6 +32,7 @@ export default function MainPage() {
   const [searchImage, setSearchImage] = useState(null);
   const [searchImagePreview, setSearchImagePreview] = useState(null);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   
   const fileInputRef = useRef(null);
   const searchFileInputRef = useRef(null);
@@ -161,6 +162,47 @@ export default function MainPage() {
   
   const handleSignOut = () => {
     signOut();
+  };
+  
+  const handleDeleteItem = async (item) => {
+    if (!confirm('Are you sure you want to delete this item?')) {
+      return;
+    }
+    
+    setDeleting(true);
+    
+    try {
+      // Extract the filename from the URL
+      const url = item.item_images[0].image_url;
+      const fileName = url.split('/').pop();
+      
+      const response = await fetch('/api/milvus/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          itemId: item.id,
+          fileName: fileName,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete item');
+      }
+      
+      // Remove the deleted item from the items state
+      setItems(items.filter(i => i.id !== item.id));
+      
+      alert('Item deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      alert('Error deleting item: ' + error.message);
+    } finally {
+      setDeleting(false);
+    }
   };
   
   if (authLoading) {
@@ -302,7 +344,21 @@ export default function MainPage() {
                           />
                         </div>
                       )}
-                      <h3 className="font-semibold">{item.title}</h3>
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-semibold">{item.title}</h3>
+                        
+                        {(user.email === item.profiles?.email || user.email === 'riddhimaan22@gmail.com') && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-red-500 hover:text-red-700 hover:bg-red-100 p-1 h-auto"
+                            onClick={() => handleDeleteItem(item)}
+                            disabled={deleting}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-500 dark:text-gray-400">Location: {item.location || "Unknown"}</p>
                       <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                         Reported by: {item.profiles?.email || "Unknown user"}
