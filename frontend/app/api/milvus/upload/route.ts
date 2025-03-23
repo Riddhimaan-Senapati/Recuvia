@@ -3,20 +3,20 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
 import { milvus, COLLECTION_NAME, VECTOR_FIELD_NAME } from '@/app/utils/milvus';
-import { promises as fs } from 'fs';
-import { join } from 'path';
-import os from 'os';
 
 // For embedding generation in server
 import { AutoProcessor, RawImage, CLIPVisionModelWithProjection } from "@xenova/transformers";
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Extend the function timeout for Vercel
 
 export async function POST(req: NextRequest) {
   try {
+    // Get cookie store
+    const cookieStore = cookies();
     
     // 1. Get authenticated user
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     if (uploadError) {
       console.error('Storage upload error:', uploadError);
       return NextResponse.json(
-        { error: 'Failed to upload image' },
+        { error: 'Failed to upload image: ' + uploadError.message },
         { status: 500 }
       );
     }
@@ -64,12 +64,7 @@ export async function POST(req: NextRequest) {
     
     const imageUrl = urlData?.publicUrl;
     
-    // 6. Save the uploaded image temporarily to process with transformers
-    const tempDir = os.tmpdir();
-    const tempFilePath = join(tempDir, fileName);
-    await fs.writeFile(tempFilePath, imageBytes);
-    
-    // 7. Generate image embedding
+    // 6. Generate image embedding without using filesystem
     // Initialize the model and processor
     const model_id = "Xenova/clip-vit-base-patch16";
     const processor = await AutoProcessor.from_pretrained(model_id);
@@ -77,16 +72,23 @@ export async function POST(req: NextRequest) {
       quantized: false,
     });
     
-    // Process the image and generate embedding
-    const image_obj = await RawImage.read(tempFilePath);
+    // Process the image directly from array buffer
+    let image_obj;
+    try {
+      // Try to use the buffer directly
+      image_obj = await RawImage.fromBlob(new Blob([imageBytes], { type: image.type || 'image/jpeg' }));
+    } catch (e) {
+      // Fallback: Convert to base64 and use that
+      const base64 = Buffer.from(imageBytes).toString('base64');
+      const dataUrl = `data:${image.type || 'image/jpeg'};base64,${base64}`;
+      image_obj = await RawImage.fromBlob(await (await fetch(dataUrl)).blob());
+    }
+    
     const image_inputs = await processor(image_obj);
     const { image_embeds } = await vision_model(image_inputs);
     const imageVector = image_embeds.tolist()[0];
-    
-    // Clean up temporary file
-    await fs.unlink(tempFilePath);
       
-    // 8. Insert into Milvus using the provided milvus utility
+    // 7. Insert into Milvus using the provided milvus utility
     // Make sure all necessary fields are included
     await milvus.insert({
       collection_name: COLLECTION_NAME,
@@ -125,7 +127,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json(
-      { error: 'Something went wrong' },
+      { error: 'Something went wrong: ' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     );
   }

@@ -252,6 +252,10 @@ export default function MainPage() {
     try {
       // Fetch the image as a blob
       const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+      }
+      
       const imageBlob = await imageResponse.blob();
       
       // Create a file object from the blob
@@ -271,9 +275,12 @@ export default function MainPage() {
         body: formData,
       });
       
-      const data = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Search API error: ${response.status} - ${errorText}`);
+      }
       
-      if (!response.ok) throw new Error(data.error || 'Search failed');
+      const data = await response.json();
       
       // Set search results
       setItems(data.items || []);
@@ -285,6 +292,7 @@ export default function MainPage() {
     } catch (error) {
       console.error('Error searching by existing image:', error);
       alert(`Error searching with this image: ${(error as Error).message}`);
+      setItems([]);
     } finally {
       setLoading(false);
     }

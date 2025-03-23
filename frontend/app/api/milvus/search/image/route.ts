@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { milvus, COLLECTION_NAME, VECTOR_FIELD_NAME } from '@/app/utils/milvus';
-import { promises as fs } from 'fs';
-import { join } from 'path';
-import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 
 // For image embedding generation
 import { AutoProcessor, RawImage, CLIPVisionModelWithProjection } from "@xenova/transformers";
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Extend the function timeout for Vercel
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,14 +21,9 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Save the uploaded image temporarily to process with transformers
+    // Instead of writing to the file system, process directly from buffer
     const imageBuffer = await image.arrayBuffer();
-    const imageBytes = new Uint8Array(imageBuffer);
-    const tempDir = os.tmpdir();
-    const tempFileName = `search-${uuidv4()}-${image.name.replace(/\s/g, '_')}`;
-    const tempFilePath = join(tempDir, tempFileName);
-    
-    await fs.writeFile(tempFilePath, imageBytes);
+    const imageUint8Array = new Uint8Array(imageBuffer);
     
     // Initialize the model and processor
     const model_id = "Xenova/clip-vit-base-patch16";
@@ -39,14 +32,22 @@ export async function POST(req: NextRequest) {
       quantized: false,
     });
     
-    // Process the image and generate embedding
-    const image_obj = await RawImage.read(tempFilePath);
+    // Process the image directly from array buffer
+    let image_obj;
+    try {
+
+       // Try to use the buffer directly
+       image_obj = await RawImage.fromBlob(new Blob([imageUint8Array], { type: image.type || 'image/jpeg' }));
+    } catch (e) {
+      // Fallback: Convert to base64 and use that
+      const base64 = Buffer.from(imageUint8Array).toString('base64');
+      const dataUrl = `data:${image.type || 'image/jpeg'};base64,${base64}`;
+      image_obj = await RawImage.fromBlob(await (await fetch(dataUrl)).blob());
+    }
+    
     const image_inputs = await processor(image_obj);
     const { image_embeds } = await vision_model(image_inputs);
     const imageVector = image_embeds.tolist()[0];
-    
-    // Clean up temporary file
-    await fs.unlink(tempFilePath);
     
     // Search in Milvus using the image vector
     const searchResult = await milvus.search({
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Image search error:', error);
     return NextResponse.json(
-      { error: 'Something went wrong' },
+      { error: 'Something went wrong: ' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     );
   }
