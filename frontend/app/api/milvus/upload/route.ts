@@ -7,14 +7,8 @@ import { milvus, COLLECTION_NAME, VECTOR_FIELD_NAME } from '@/app/utils/milvus';
 // For embedding generation in server
 import { AutoProcessor, RawImage, CLIPVisionModelWithProjection } from "@xenova/transformers";
 
-// Make sure we're explicitly setting the right configs for Vercel
-export const config = {
-  runtime: 'edge',
-  regions: ['iad1'],
-};
-
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   // Set the proper content type
