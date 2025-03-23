@@ -1,9 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
   eslint: {
     ignoreDuringBuilds: true,
   },
-  images: { unoptimized: true },
+  images: { 
+    unoptimized: true,
+    domains: [process.env.NEXT_PUBLIC_SUPABASE_URL]
+   },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Prevent webpack from processing Node.js modules
@@ -31,7 +35,7 @@ const nextConfig = {
     }
     return config;
   },
-  serverExternalPackages: ["@zilliz/milvus2-sdk-node"],
+  serverExternalPackages: ["@zilliz/milvus2-sdk-node","@xenova/transformers"],
 	outputFileTracingIncludes: {
 			// When deploying to Vercel, the following configuration is required
 			"/api/**/*": ["node_modules/@zilliz/milvus2-sdk-node/dist/proto/**/*"],

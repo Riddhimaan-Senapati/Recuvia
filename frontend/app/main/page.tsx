@@ -87,42 +87,56 @@ export default function MainPage() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (!imageFile || !title.trim() || !location.trim()) {
-      alert('Please fill in all required fields and select an image');
+    if (!imageFile) {
+      alert('Please select an image');
+      return;
+    }
+    
+    if (!title.trim()) {
+      alert('Please enter a title');
+      return;
+    }
+    
+    if (!location.trim()) {
+      alert('Please enter a location');
       return;
     }
     
     setUploading(true);
     
     try {
+      console.log("Building form data for upload");
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', description || '');
       formData.append('location', location);
       formData.append('image', imageFile);
       
-      console.log("Sending upload request...");
-      
+      console.log("Starting upload request");
       const response = await fetch('/api/milvus/upload', {
         method: 'POST',
         body: formData,
       });
       
-      // Get the raw response text
-      const responseText = await response.text();
-      console.log("Response status:", response.status);
-      console.log("Response text:", responseText);
+      console.log("Upload response received:", response.status);
       
-      // Only try to parse as JSON if there's actual content
+      // Get response text first
+      const text = await response.text();
+      console.log("Response text length:", text.length);
+      
+      // Try to parse it as JSON if it's not empty
       let result;
-      if (responseText) {
+      if (text && text.trim()) {
         try {
-          result = JSON.parse(responseText);
+          result = JSON.parse(text);
+          console.log("Parsed response:", result);
         } catch (e) {
-          throw new Error(`Invalid JSON response: ${responseText}`);
+          console.error("Failed to parse response:", text);
+          throw new Error(`Invalid response format: ${text.substring(0, 100)}...`);
         }
       } else {
-        throw new Error('Empty response from server');
+        console.error("Empty response received");
+        throw new Error(`Server returned empty response with status: ${response.status}`);
       }
       
       if (!response.ok) {

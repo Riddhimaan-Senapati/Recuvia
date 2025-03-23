@@ -14,12 +14,13 @@ const tmpDir = os.tmpdir();
 env.cacheDir = path.join(tmpDir, '.cache', 'transformers');
 console.log("Using cache directory:", env.cacheDir);
 
+// IMPORTANT: Use Node.js runtime, not Edge runtime
+export const runtime = "nodejs"; 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; 
+export const maxDuration = 60;
 
-// Remove NextResponse with Headers and use built-in NextResponse.json
 export async function POST(req: NextRequest) {
-  console.log("Upload API called");
+  console.log("Upload API called - Method:", req.method);
   
   try {
     // Get cookie store
@@ -31,7 +32,10 @@ export async function POST(req: NextRequest) {
     
     if (!session) {
       console.log("Unauthorized - no session");
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
     
     // 2. Parse the form data
@@ -43,7 +47,10 @@ export async function POST(req: NextRequest) {
     
     if (!title || !location || !image) {
       console.log("Missing required fields");
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
     
     console.log("Processing upload for user:", session.user.email);
@@ -65,10 +72,10 @@ export async function POST(req: NextRequest) {
     
     if (uploadError) {
       console.error('Storage upload error:', uploadError);
-      return NextResponse.json(
-        { error: 'Failed to upload image: ' + uploadError.message },
-        { status: 500 }
-      );
+      return new Response(JSON.stringify({ error: 'Failed to upload image: ' + uploadError.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
     
     console.log("File uploaded successfully to Supabase");
@@ -81,11 +88,11 @@ export async function POST(req: NextRequest) {
     const imageUrl = urlData?.publicUrl;
     console.log("Image public URL:", imageUrl);
     
-    // 6. Generate image embedding without using filesystem
+    // 6. Generate image embedding
     try {
       console.log("Initializing image processor with cache dir:", env.cacheDir);
       
-      // Initialize the model and processor with remote cache options
+      // Initialize the model and processor
       const model_id = "Xenova/clip-vit-base-patch16";
       const processor = await AutoProcessor.from_pretrained(model_id, {
         cache_dir: env.cacheDir,
@@ -103,20 +110,20 @@ export async function POST(req: NextRequest) {
       });
       
       console.log("Vision model loaded, processing image");
-      
+
       let image_obj;
       try {
-        // Try to use the buffer directly
-        image_obj = await RawImage.fromBlob(new Blob([imageBuffer], { type: image.type || 'image/jpeg' }));
+       // Try to use the buffer directly
+       image_obj = await RawImage.fromBlob(new Blob([imageBuffer], { type: image.type || 'image/jpeg' }));
       } catch (e) {
-  // Fallback: Convert to base64 and use that
+      // Fallback: Convert to base64 and use that
       const base64 = Buffer.from(imageBuffer).toString('base64');
       const dataUrl = `data:${image.type || 'image/jpeg'};base64,${base64}`;
       image_obj = await RawImage.fromBlob(await (await fetch(dataUrl)).blob());
-      }
-
-      console.log("Image object created");
-      
+     }
+    
+      console.log("Image obj created");
+         
       const image_inputs = await processor(image_obj);
       console.log("Image processed");
       
@@ -125,7 +132,7 @@ export async function POST(req: NextRequest) {
       
       const imageVector = image_embeds.tolist()[0];
       
-      // 7. Insert into Milvus using the provided milvus utility
+      // 7. Insert into Milvus
       console.log("Inserting into Milvus");
       await milvus.insert({
         collection_name: COLLECTION_NAME,
@@ -145,8 +152,8 @@ export async function POST(req: NextRequest) {
       
       console.log("Milvus insert successful");
       
-      // Return success response with all item data
-      return NextResponse.json({
+      // Return success response
+      return new Response(JSON.stringify({
         success: true,
         item: {
           id: itemId,
@@ -162,11 +169,14 @@ export async function POST(req: NextRequest) {
             email: session.user.email
           }
         }
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
       });
     } catch (processingError) {
       console.error("Error in image processing or Milvus insertion:", processingError);
       
-      // Cleanup the uploaded image if we failed to process it
+      // Cleanup
       try {
         console.log("Cleaning up Supabase Storage file due to error");
         await supabase.storage.from('item-images').remove([fileName]);
@@ -174,26 +184,29 @@ export async function POST(req: NextRequest) {
         console.error("Failed to clean up file:", cleanupError);
       }
       
-      return NextResponse.json(
-        { error: 'Failed to process image or save to database: ' + 
-          (processingError instanceof Error ? processingError.message : String(processingError)) },
-        { status: 500 }
-      );
+      return new Response(JSON.stringify({ 
+        error: 'Failed to process image or save to database: ' + 
+          (processingError instanceof Error ? processingError.message : String(processingError)) 
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
   } catch (error) {
     console.error('Upload route error:', error);
-    return NextResponse.json(
-      { error: 'Something went wrong with the upload: ' + 
-        (error instanceof Error ? error.message : String(error)) },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ 
+      error: 'Something went wrong with the upload: ' + 
+        (error instanceof Error ? error.message : String(error)) 
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 
-// Add OPTIONS handler for CORS
-export async function OPTIONS() {
-  return NextResponse.json({}, { 
-    status: 200,
+export async function OPTIONS(req: NextRequest) {
+  return new Response(null, {
+    status: 204,
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',

@@ -1,31 +1,23 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
+  "functions": {
+    "app/api/milvus/upload/route.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "app/api/milvus/search/image/route.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "app/api/milvus/search/text/route.ts": {
+      "memory": 1024,
+      "maxDuration": 60
     }
-  ],
-  "routes": [
-    {
-      "src": "/api/milvus/search/image",
-      "methods": ["POST", "OPTIONS"],
-      "dest": "/api/milvus/search/image"
-    },
-    {
-      "src": "/api/milvus/search/text",
-      "methods": ["POST", "OPTIONS"],
-      "dest": "/api/milvus/search/text"
-    },
-    {
-      "src": "/api/milvus/upload",
-      "methods": ["POST", "OPTIONS"],
-      "dest": "/api/milvus/upload"
-    },
-    {
-      "src": "/api/milvus/delete",
-      "methods": ["POST", "OPTIONS"],
-      "dest": "/api/milvus/delete"
-    }
+  },
+  "rewrites": [
+    { "source": "/api/milvus/upload", "destination": "/api/milvus/upload" },
+    { "source": "/api/milvus/search/image", "destination": "/api/milvus/search/image" },
+    { "source": "/api/milvus/search/text", "destination": "/api/milvus/search/text" },
+    { "source": "/api/milvus/delete", "destination": "/api/milvus/delete" }
   ]
 } 
