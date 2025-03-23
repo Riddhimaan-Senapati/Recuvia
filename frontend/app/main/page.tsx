@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ImageIcon, SearchIcon, Upload, Trash2 } from 'lucide-react';
+import { ImageIcon, SearchIcon, Upload, Trash2, Search } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -245,6 +245,51 @@ export default function MainPage() {
     }
   };
   
+  // Add a new function to perform image search with an existing image URL
+  const handleSearchWithItem = async (imageUrl: string, title: string) => {
+    setLoading(true);
+    
+    try {
+      // Fetch the image as a blob
+      const imageResponse = await fetch(imageUrl);
+      const imageBlob = await imageResponse.blob();
+      
+      // Create a file object from the blob
+      const fileName = `search-${Date.now()}.jpg`;
+      const file = new File([imageBlob], fileName, { type: 'image/jpeg' });
+      
+      // Set the search image preview for user feedback
+      setSearchImage(file);
+      setSearchImagePreview(imageUrl);
+      
+      // Create a FormData object for the API request
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const response = await fetch('/api/milvus/search/image', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) throw new Error(data.error || 'Search failed');
+      
+      // Set search results
+      setItems(data.items || []);
+      
+      // Switch to Lost tab if not already there
+      if (activeTab !== 'lost') {
+        setActiveTab('lost');
+      }
+    } catch (error) {
+      console.error('Error searching by existing image:', error);
+      alert(`Error searching with this image: ${(error as Error).message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   if (authLoading) {
     return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
   }
@@ -375,15 +420,34 @@ export default function MainPage() {
                   items.map((item) => (
                     <Card key={item.id} className="p-4 flex flex-col h-full">
                       {item.item_images && item.item_images[0] && (
-                        <div className="relative h-48 w-full mb-3">
+                        <div className="relative h-48 w-full mb-3 group">
                           <Image
                             src={item.item_images[0].image_url}
                             alt={item.title}
                             fill
                             className="object-cover rounded"
                           />
+                          
+                          {/* Overlay on hover */}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded flex flex-col justify-between p-2 text-white">
+                            {/* Score display at top */}
+                            <div className="text-sm font-semibold bg-black/60 self-start px-2 py-1 rounded">
+                              Score: {item.score ? item.score.toFixed(4) : 'N/A'}
+                            </div>
+                            
+                            {/* Search button at bottom */}
+                            <Button 
+                              onClick={() => handleSearchWithItem(item.item_images[0].image_url, item.title)}
+                              className="self-end bg-lost text-lost-foreground hover:bg-lost/90"
+                              size="sm"
+                            >
+                              <Search className="h-4 w-4 mr-1" />
+                              Search Similar
+                            </Button>
+                          </div>
                         </div>
                       )}
+                      
                       <div className="flex justify-between items-start">
                         <h3 className="font-semibold">{item.title}</h3>
                         
