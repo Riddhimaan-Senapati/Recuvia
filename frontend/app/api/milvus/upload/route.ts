@@ -7,10 +7,20 @@ import { milvus, COLLECTION_NAME, VECTOR_FIELD_NAME } from '@/app/utils/milvus';
 // For embedding generation in server
 import { AutoProcessor, RawImage, CLIPVisionModelWithProjection } from "@xenova/transformers";
 
+// Make sure we're explicitly setting the right configs for Vercel
+export const config = {
+  runtime: 'edge',
+  regions: ['iad1'],
+};
+
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Extend the function timeout for Vercel
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  // Set the proper content type
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/json');
+
   try {
     // Get cookie store
     const cookieStore = cookies();
@@ -20,7 +30,10 @@ export async function POST(req: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return new NextResponse(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers }
+      );
     }
     
     // 2. Parse the form data
@@ -31,9 +44,9 @@ export async function POST(req: NextRequest) {
     const image = formData.get('image') as File;
     
     if (!title || !location || !image) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
+      return new NextResponse(
+        JSON.stringify({ error: 'Missing required fields' }),
+        { status: 400, headers }
       );
     }
     
@@ -51,9 +64,9 @@ export async function POST(req: NextRequest) {
     
     if (uploadError) {
       console.error('Storage upload error:', uploadError);
-      return NextResponse.json(
-        { error: 'Failed to upload image: ' + uploadError.message },
-        { status: 500 }
+      return new NextResponse(
+        JSON.stringify({ error: 'Failed to upload image: ' + uploadError.message }),
+        { status: 500, headers }
       );
     }
     
@@ -72,24 +85,15 @@ export async function POST(req: NextRequest) {
       quantized: false,
     });
     
-    // Process the image directly from array buffer
-    let image_obj;
-    try {
-      // Try to use the buffer directly
-      image_obj = await RawImage.fromBlob(new Blob([imageBytes], { type: image.type || 'image/jpeg' }));
-    } catch (e) {
-      // Fallback: Convert to base64 and use that
-      const base64 = Buffer.from(imageBytes).toString('base64');
-      const dataUrl = `data:${image.type || 'image/jpeg'};base64,${base64}`;
-      image_obj = await RawImage.fromBlob(await (await fetch(dataUrl)).blob());
-    }
+    // Process the image directly from array buffer as a blob
+    const blob = new Blob([imageBytes], { type: image.type || 'image/jpeg' });
+    const image_obj = await RawImage.fromBlob(blob);
     
     const image_inputs = await processor(image_obj);
     const { image_embeds } = await vision_model(image_inputs);
     const imageVector = image_embeds.tolist()[0];
       
     // 7. Insert into Milvus using the provided milvus utility
-    // Make sure all necessary fields are included
     await milvus.insert({
       collection_name: COLLECTION_NAME,
       fields_data: [{
@@ -107,28 +111,31 @@ export async function POST(req: NextRequest) {
     });
     
     // Return success response with all item data
-    return NextResponse.json({
-      success: true,
-      item: {
-        id: itemId,
-        title,
-        description,
-        location,
-        submitter_email: session.user.email,
-        created_at: new Date().toISOString(),
-        item_images: [{
-          image_url: imageUrl
-        }],
-        profiles: {
-          email: session.user.email
+    return new NextResponse(
+      JSON.stringify({
+        success: true,
+        item: {
+          id: itemId,
+          title,
+          description,
+          location,
+          submitter_email: session.user.email,
+          created_at: new Date().toISOString(),
+          item_images: [{
+            image_url: imageUrl
+          }],
+          profiles: {
+            email: session.user.email
+          }
         }
-      }
-    });
+      }),
+      { status: 200, headers }
+    );
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json(
-      { error: 'Something went wrong: ' + (error instanceof Error ? error.message : String(error)) },
-      { status: 500 }
+    return new NextResponse(
+      JSON.stringify({ error: 'Something went wrong: ' + (error instanceof Error ? error.message : String(error)) }),
+      { status: 500, headers }
     );
   }
 }

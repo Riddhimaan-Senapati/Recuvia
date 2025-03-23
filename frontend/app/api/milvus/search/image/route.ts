@@ -1,29 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { milvus, COLLECTION_NAME, VECTOR_FIELD_NAME } from '@/app/utils/milvus';
-import { v4 as uuidv4 } from 'uuid';
 
 // For image embedding generation
 import { AutoProcessor, RawImage, CLIPVisionModelWithProjection } from "@xenova/transformers";
 
+// Make sure we're explicitly setting the right configs for Vercel
+export const config = {
+  runtime: 'edge',
+  regions: ['iad1'], // Optimizing for a specific region can help
+};
+
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Extend the function timeout for Vercel
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  // Set the proper content type
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/json');
+
   try {
     // Parse form data to get the image file uploaded by user
     const formData = await req.formData();
     const image = formData.get('image') as File;
     
     if (!image) {
-      return NextResponse.json(
-        { error: 'No image provided' },
-        { status: 400 }
+      return new NextResponse(
+        JSON.stringify({ error: 'No image provided' }),
+        { status: 400, headers }
       );
     }
     
     // Instead of writing to the file system, process directly from buffer
     const imageBuffer = await image.arrayBuffer();
-    const imageUint8Array = new Uint8Array(imageBuffer);
+    const imageBytes = new Uint8Array(imageBuffer);
     
     // Initialize the model and processor
     const model_id = "Xenova/clip-vit-base-patch16";
@@ -32,18 +41,9 @@ export async function POST(req: NextRequest) {
       quantized: false,
     });
     
-    // Process the image directly from array buffer
-    let image_obj;
-    try {
-
-       // Try to use the buffer directly
-       image_obj = await RawImage.fromBlob(new Blob([imageUint8Array], { type: image.type || 'image/jpeg' }));
-    } catch (e) {
-      // Fallback: Convert to base64 and use that
-      const base64 = Buffer.from(imageUint8Array).toString('base64');
-      const dataUrl = `data:${image.type || 'image/jpeg'};base64,${base64}`;
-      image_obj = await RawImage.fromBlob(await (await fetch(dataUrl)).blob());
-    }
+    // Process the image directly from buffer as a blob
+    const blob = new Blob([imageBytes], { type: image.type || 'image/jpeg' });
+    const image_obj = await RawImage.fromBlob(blob);
     
     const image_inputs = await processor(image_obj);
     const { image_embeds } = await vision_model(image_inputs);
@@ -68,7 +68,10 @@ export async function POST(req: NextRequest) {
     });
     
     if (!searchResult || !searchResult.results || searchResult.results.length === 0) {
-      return NextResponse.json({ items: [] });
+      return new NextResponse(
+        JSON.stringify({ items: [] }),
+        { status: 200, headers }
+      );
     }
     
     // Format the results for the frontend
@@ -87,12 +90,15 @@ export async function POST(req: NextRequest) {
       score: item.score
     }));
     
-    return NextResponse.json({ items: results });
+    return new NextResponse(
+      JSON.stringify({ items: results }),
+      { status: 200, headers }
+    );
   } catch (error) {
     console.error('Image search error:', error);
-    return NextResponse.json(
-      { error: 'Something went wrong: ' + (error instanceof Error ? error.message : String(error)) },
-      { status: 500 }
+    return new NextResponse(
+      JSON.stringify({ error: 'Something went wrong: ' + (error instanceof Error ? error.message : String(error)) }),
+      { status: 500, headers }
     );
   }
 }

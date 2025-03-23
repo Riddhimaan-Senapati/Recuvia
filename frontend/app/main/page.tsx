@@ -92,6 +92,16 @@ export default function MainPage() {
       return;
     }
     
+    if (!title.trim()) {
+      alert('Please enter a title');
+      return;
+    }
+    
+    if (!location.trim()) {
+      alert('Please enter a location');
+      return;
+    }
+    
     setUploading(true);
     
     try {
@@ -409,6 +419,7 @@ export default function MainPage() {
                       onChange={handleSearchImageChange}
                       accept="image/*"
                       className="hidden"
+                      aria-label="Select image for search"
                     />
                   </div>
                   <Button 
@@ -556,7 +567,7 @@ export default function MainPage() {
                           onChange={handleImageChange}
                           accept="image/*"
                           className="hidden"
-                          required
+                          aria-label="Upload image"
                         />
                       </div>
                     </div>
