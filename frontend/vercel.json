@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/milvus/search/image",
+      "methods": ["POST", "OPTIONS"],
+      "dest": "/api/milvus/search/image"
+    },
+    {
+      "src": "/api/milvus/search/text",
+      "methods": ["POST", "OPTIONS"],
+      "dest": "/api/milvus/search/text"
+    },
+    {
+      "src": "/api/milvus/upload",
+      "methods": ["POST", "OPTIONS"],
+      "dest": "/api/milvus/upload"
+    },
+    {
+      "src": "/api/milvus/delete",
+      "methods": ["POST", "OPTIONS"],
+      "dest": "/api/milvus/delete"
+    }
+  ]
+} 

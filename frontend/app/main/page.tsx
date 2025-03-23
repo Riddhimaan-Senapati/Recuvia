@@ -280,17 +280,36 @@ export default function MainPage() {
       const formData = new FormData();
       formData.append('image', file);
       
+      console.log("Sending search request with image from an existing item...");
+      
       const response = await fetch('/api/milvus/search/image', {
         method: 'POST',
         body: formData,
       });
       
+      const text = await response.text(); // Get the raw response text
+      
+      console.log(`Response status: ${response.status}`);
+      console.log(`Response text: ${text}`);
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Search API error: ${response.status} - ${errorText}`);
+        throw new Error(`Search API error: ${response.status} - ${text}`);
       }
       
-      const data = await response.json();
+      // If the response is empty, handle that case
+      if (!text) {
+        console.warn("Received empty response");
+        setItems([]);
+        return;
+      }
+      
+      // Try to parse the JSON
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Failed to parse response as JSON: ${text}`);
+      }
       
       // Set search results
       setItems(data.items || []);

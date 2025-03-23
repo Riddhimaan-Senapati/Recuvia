@@ -5,6 +5,9 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter, usePathname } from 'next/navigation';
 import { Session, User } from '@supabase/supabase-js';
 
+// Create a single instance of Supabase client
+const supabaseClient = createClientComponentClient();
+
 // Define the type for the context value
 type AuthContextType = {
   user: User | null;
@@ -22,18 +25,17 @@ type AuthProviderProps = {
   children: ReactNode;
 };
 
-
-export function AuthProvider({ children }: AuthProviderProps) {
+export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClientComponentClient();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user || null);
+    const getUser = async () => {
+      // Use the existing client
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      setUser(user);
       setLoading(false);
 
       // Handle protected routes
@@ -41,7 +43,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const isMainPage = pathname === '/main';
       const isHomePage = pathname === '/';
 
-      if (session) {
+      if (user) {
         // User is logged in
         if (isAuthRoute) {
           // Redirect away from auth pages if already logged in
@@ -56,11 +58,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     };
 
-    getSession();
+    getUser();
 
     // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user || null);
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
       
       // Handle auth state changes
       if (event === 'SIGNED_IN') {
@@ -75,13 +78,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, [pathname, router]);
 
+  const signOut = async () => {
+    // Use the existing client
+    await supabaseClient.auth.signOut();
+    setUser(null);
+  };
+
   const value = {
     user,
     loading,
-    signOut: async () => {
-      await supabase.auth.signOut();
-      router.push('/');
-    }
+    signOut
   };
 
   return (
@@ -89,7 +95,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
