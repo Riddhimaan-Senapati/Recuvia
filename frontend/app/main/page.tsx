@@ -87,18 +87,8 @@ export default function MainPage() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (!imageFile) {
-      alert('Please select an image');
-      return;
-    }
-    
-    if (!title.trim()) {
-      alert('Please enter a title');
-      return;
-    }
-    
-    if (!location.trim()) {
-      alert('Please enter a location');
+    if (!imageFile || !title.trim() || !location.trim()) {
+      alert('Please fill in all required fields and select an image');
       return;
     }
     
@@ -111,15 +101,32 @@ export default function MainPage() {
       formData.append('location', location);
       formData.append('image', imageFile);
       
+      console.log("Sending upload request...");
+      
       const response = await fetch('/api/milvus/upload', {
         method: 'POST',
         body: formData,
       });
       
-      const result = await response.json();
+      // Get the raw response text
+      const responseText = await response.text();
+      console.log("Response status:", response.status);
+      console.log("Response text:", responseText);
+      
+      // Only try to parse as JSON if there's actual content
+      let result;
+      if (responseText) {
+        try {
+          result = JSON.parse(responseText);
+        } catch (e) {
+          throw new Error(`Invalid JSON response: ${responseText}`);
+        }
+      } else {
+        throw new Error('Empty response from server');
+      }
       
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to upload item');
+        throw new Error(result?.error || `Upload failed with status: ${response.status}`);
       }
       
       // Reset form
