@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
     });
     
     const { text_embeds } = await text_model(text_inputs);
-    const textVector = Array.from(text_embeds.data);
+    // Fix: Explicitly cast the array to number[] type
+    const textVector: number[] = Array.from(text_embeds.data) as number[];
     
     // Search in Milvus using the text vector
     const searchResult = await milvus.search({

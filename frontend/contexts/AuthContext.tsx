@@ -1,13 +1,30 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter, usePathname } from 'next/navigation';
+import { Session, User } from '@supabase/supabase-js';
 
-const AuthContext = createContext(null);
+// Define the type for the context value
+type AuthContextType = {
+  user: User | null;
+  loading: boolean;
+  signIn?: (email: string, password: string) => Promise<void>;
+  signUp?: (email: string, password: string) => Promise<void>;
+  signOut?: () => Promise<void>;
+};
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+// Create context with proper typing
+const AuthContext = createContext<AuthContextType | null>(null);
+
+// Define props type for AuthProvider
+type AuthProviderProps = {
+  children: ReactNode;
+};
+
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const supabase = createClientComponentClient();
   const router = useRouter();

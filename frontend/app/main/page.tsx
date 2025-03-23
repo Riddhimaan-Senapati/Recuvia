@@ -1,7 +1,7 @@
 // app/page.tsx
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, ChangeEvent, FormEvent, KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,47 +15,76 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
+interface ItemImage {
+  image_url: string;
+}
+
+interface Profile {
+  email: string;
+}
+
+interface Item {
+  id: string;
+  title: string;
+  description?: string;
+  location: string;
+  created_at?: string;
+  profiles?: Profile;
+  item_images: ItemImage[];
+  score?: number;
+}
+
+// Add type definition for Auth context
+interface AuthContextType {
+  user: any; 
+  loading: boolean;
+  signOut: () => void; // Explicitly define signOut as a function that returns void
+}
+
 export default function MainPage() {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('lost'); // Set lost as default tab
-  const [searchQuery, setSearchQuery] = useState('');
-  const { user, loading: authLoading, signOut } = useAuth();
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('lost'); // Set lost as default tab
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  // Add type casting for useAuth to fix the signOut error
+  const { user, loading: authLoading, signOut } = useAuth() as AuthContextType;
   
   // Upload states
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [location, setLocation] = useState('');
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [searchImage, setSearchImage] = useState(null);
-  const [searchImagePreview, setSearchImagePreview] = useState(null);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [title, setTitle] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [location, setLocation] = useState<string>('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [searchImage, setSearchImage] = useState<File | null>(null);
+  const [searchImagePreview, setSearchImagePreview] = useState<string | null>(null);
+  const [searchLoading, setSearchLoading] = useState<boolean>(false);
+  const [deleting, setDeleting] = useState<boolean>(false);
   
-  const fileInputRef = useRef(null);
-  const searchFileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const searchFileInputRef = useRef<HTMLInputElement | null>(null);
   const supabase = createClientComponentClient();
   const router = useRouter();
   
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
     
+    const file = files[0];
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
   };
   
-  const handleSearchImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleSearchImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
     
+    const file = files[0];
     setSearchImage(file);
     setSearchImagePreview(URL.createObjectURL(file));
   };
   
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (!imageFile) {
@@ -93,7 +122,7 @@ export default function MainPage() {
       alert('Item uploaded successfully!');
     } catch (error) {
       console.error('Error uploading item:', error);
-      alert('Error uploading item: ' + error.message);
+      alert('Error uploading item: ' + (error as Error).message);
     } finally {
       setUploading(false);
     }
@@ -161,10 +190,15 @@ export default function MainPage() {
   };
   
   const handleSignOut = () => {
-    signOut();
+    // Fix signOut call by ensuring it's a function
+    if (typeof signOut === 'function') {
+      signOut();
+    } else {
+      console.error('signOut is not a function');
+    }
   };
   
-  const handleDeleteItem = async (item) => {
+  const handleDeleteItem = async (item: Item) => {
     if (!confirm('Are you sure you want to delete this item?')) {
       return;
     }
@@ -199,9 +233,15 @@ export default function MainPage() {
       alert('Item deleted successfully!');
     } catch (error) {
       console.error('Error deleting item:', error);
-      alert('Error deleting item: ' + error.message);
+      alert('Error deleting item: ' + (error as Error).message);
     } finally {
       setDeleting(false);
+    }
+  };
+  
+  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleTextSearch();
     }
   };
   
@@ -278,8 +318,8 @@ export default function MainPage() {
                   <Input 
                     placeholder="Search for your lost items..." 
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleTextSearch()}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                    onKeyPress={handleKeyPress}
                   />
                   <Button 
                     onClick={handleTextSearch}
@@ -391,7 +431,7 @@ export default function MainPage() {
                       <label className="block mb-1">Title *</label>
                       <Input
                         value={title}
-                        onChange={(e) => setTitle(e.target.value)}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                         required
                         placeholder="Item name or brief description"
                       />
@@ -401,7 +441,7 @@ export default function MainPage() {
                       <label className="block mb-1">Description</label>
                       <Textarea
                         value={description}
-                        onChange={(e) => setDescription(e.target.value)}
+                        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
                         rows={3}
                         placeholder="Provide more details about the item"
                       />
@@ -411,7 +451,7 @@ export default function MainPage() {
                       <label className="block mb-1">Location *</label>
                       <Input
                         value={location}
-                        onChange={(e) => setLocation(e.target.value)}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => setLocation(e.target.value)}
                         required
                         placeholder="Where was this item found?"
                       />
