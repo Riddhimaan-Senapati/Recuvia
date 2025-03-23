@@ -8,7 +8,7 @@ import { milvus, COLLECTION_NAME, VECTOR_FIELD_NAME } from '@/app/utils/milvus';
 import { AutoProcessor, RawImage, CLIPVisionModelWithProjection } from "@xenova/transformers";
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   // Set the proper content type
