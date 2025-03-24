@@ -92,11 +92,11 @@ export async function POST(req: NextRequest) {
     try {
       console.log("Initializing image processor with cache dir:", env.cacheDir);
       
-      // Initialize the model and processor
+      // Initialize the model and processor from the local cache
       const model_id = "Xenova/clip-vit-base-patch16";
       const processor = await AutoProcessor.from_pretrained(model_id, {
         cache_dir: env.cacheDir,
-        local_files_only: false,
+        local_files_only: true, // Load from local cache
         progress_callback: undefined
       });
       
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       
       const vision_model = await CLIPVisionModelWithProjection.from_pretrained(model_id, {
         cache_dir: env.cacheDir,
-        local_files_only: false,
+        local_files_only: true, // Load from local cache
         quantized: false,
         progress_callback: undefined
       });
@@ -113,14 +113,14 @@ export async function POST(req: NextRequest) {
 
       let image_obj;
       try {
-       // Try to use the buffer directly
-       image_obj = await RawImage.fromBlob(new Blob([imageBuffer], { type: image.type || 'image/jpeg' }));
+        // Try to use the buffer directly
+        image_obj = await RawImage.fromBlob(new Blob([imageBuffer], { type: image.type || 'image/jpeg' }));
       } catch (e) {
-      // Fallback: Convert to base64 and use that
-      const base64 = Buffer.from(imageBuffer).toString('base64');
-      const dataUrl = `data:${image.type || 'image/jpeg'};base64,${base64}`;
-      image_obj = await RawImage.fromBlob(await (await fetch(dataUrl)).blob());
-     }
+        // Fallback: Convert to base64 and use that
+        const base64 = Buffer.from(imageBuffer).toString('base64');
+        const dataUrl = `data:${image.type || 'image/jpeg'};base64,${base64}`;
+        image_obj = await RawImage.fromBlob(await (await fetch(dataUrl)).blob());
+      }
     
       console.log("Image obj created");
          
