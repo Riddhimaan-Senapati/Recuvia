@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
 
       // Add fallback model loading
       // Initialize the model and processor from the local cache
-      const model_id = "Xenova/clip-vit-base-patch16";
+      const model_id = "Xenova/clip-vit-base-patch32";
       const processor = await AutoProcessor.from_pretrained(model_id, {
            cache_dir: env.cacheDir,
            local_files_only: false, // Allow downloading if not in cache
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
       
        const vision_model = await CLIPVisionModelWithProjection.from_pretrained(model_id, {
         cache_dir: env.cacheDir,
-        local_files_only: true, // Load from local cache
+        local_files_only: false, // Allow downloading if not in cache
         quantized: false,
        });
       

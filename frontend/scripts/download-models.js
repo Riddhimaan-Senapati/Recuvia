@@ -6,7 +6,7 @@ async function downloadModels() {
     // Dynamically import transformers
     const { pipeline } = await import('@xenova/transformers');
 
-    const modelPath = path.join(process.cwd(), '.cache', 'transformers', 'Xenova/clip-vit-base-patch16');
+    const modelPath = path.join(process.cwd(), '.cache', 'transformers', 'Xenova/clip-vit-base-patch32');
     
     // Check if models are already downloaded
     if (fs.existsSync(modelPath)) {
@@ -18,7 +18,7 @@ async function downloadModels() {
     fs.mkdirSync(modelPath, { recursive: true });
 
     // Download models
-    await pipeline('feature-extraction', 'Xenova/clip-vit-base-patch16', {
+    await pipeline('feature-extraction', 'Xenova/clip-vit-base-patch32', {
       cache_dir: modelPath
     });
     

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     const dataUrl = `data:${image.type || 'image/jpeg'};base64,${base64}`;
     
     // Initialize the model and processor
-    const model_id = "Xenova/clip-vit-base-patch16";
+    const model_id = "Xenova/clip-vit-base-patch32";
     const processor = await AutoProcessor.from_pretrained(model_id);
     const vision_model = await CLIPVisionModelWithProjection.from_pretrained(model_id);
     

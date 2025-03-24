@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Initialize the tokenizer and text model
-    const model_id = "Xenova/clip-vit-base-patch16";
+    const model_id = "Xenova/clip-vit-base-patch32";
     const tokenizer = await AutoTokenizer.from_pretrained(model_id);
     const text_model = await CLIPTextModelWithProjection.from_pretrained(model_id);
     
