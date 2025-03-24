@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "download-models": "node scripts/download-models.js",
     "dev": "next dev",
-    "build": "node scripts/download-models.js && next build",
+    "build": "npm run download-models && next build",
     "start": "next start",
     "lint": "next lint",
-    "vercel-build": "node scripts/download-models.js && next build"
+    "vercel-build": "npm run download-models && next build"
   },
   "dependencies": {
     "@eslint/config-array": "^0.19.2",
