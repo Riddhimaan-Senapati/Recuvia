@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/download-models.js && next build",
     "start": "next start",
     "lint": "next lint",
-    "vercel-build": "next build"
+    "vercel-build": "node scripts/download-models.js && next build"
   },
   "dependencies": {
     "@eslint/config-array": "^0.19.2",
