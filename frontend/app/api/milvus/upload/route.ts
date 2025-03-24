@@ -95,16 +95,17 @@ export async function POST(req: NextRequest) {
 
       // Use a more flexible cache strategy
       env.cacheDir = process.env.VERCEL_TMP_DIR || path.join(os.tmpdir(), '.cache', 'transformers');
+      env.allowRemoteModels = true;
+      process.env.TRANSFORMERS_OFFLINE = '0';
       console.log("Vercel environment:", process.env);
       console.log("Temp directory:", env.cacheDir);
 
-  // Add fallback model loading
-  // Initialize the model and processor from the local cache
+      // Add fallback model loading
+      // Initialize the model and processor from the local cache
       const model_id = "Xenova/clip-vit-base-patch16";
       const processor = await AutoProcessor.from_pretrained(model_id, {
            cache_dir: env.cacheDir,
            local_files_only: false, // Allow downloading if not in cache
-           progress_callback: undefined
       });
        console.log("Processor loaded, initializing vision model");
       
@@ -112,7 +113,6 @@ export async function POST(req: NextRequest) {
         cache_dir: env.cacheDir,
         local_files_only: true, // Load from local cache
         quantized: false,
-        progress_callback: undefined
        });
       
       console.log("Vision model loaded, processing image");
