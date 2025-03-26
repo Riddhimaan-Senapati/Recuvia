@@ -6,7 +6,6 @@ import { milvus, COLLECTION_NAME, VECTOR_FIELD_NAME } from '@/app/utils/milvus';
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
-import sharp from 'sharp';
 
 // For embedding generation in server
 import { AutoProcessor, RawImage, CLIPVisionModelWithProjection, env } from "@xenova/transformers";
@@ -30,39 +29,12 @@ export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-// Define maximum image dimensions to reduce memory usage
-const MAX_IMAGE_SIZE = 512; // pixels
-
-// Pre-load model and processor (will be cached)
-let processor: any = null;
-let vision_model: any = null;
-
 // Smaller model with lower memory footprint
 const model_id = "Xenova/clip-vit-base-patch32";
 
-// Function to resize image buffer to reduce memory usage
-async function resizeImageBuffer(buffer: ArrayBuffer, mimeType: string): Promise<Buffer> {
-  try {
-    // Convert ArrayBuffer to Buffer
-    const inputBuffer = Buffer.from(buffer);
-    
-    // Use sharp to resize the image while maintaining aspect ratio
-    const resizedBuffer = await sharp(inputBuffer)
-      .resize({
-        width: MAX_IMAGE_SIZE,
-        height: MAX_IMAGE_SIZE,
-        fit: 'inside',
-        withoutEnlargement: true
-      })
-      .toBuffer();
-    
-    return resizedBuffer;
-  } catch (error) {
-    console.error("Error resizing image:", error);
-    // Return original buffer if resize fails
-    return Buffer.from(buffer);
-  }
-}
+// Lazy-loaded processor and model
+let processor: any = null;
+let vision_model: any = null;
 
 export async function POST(req: NextRequest) {
   console.log("Upload API called - Method:", req.method);
@@ -143,15 +115,12 @@ export async function POST(req: NextRequest) {
       env.allowRemoteModels = true;
       process.env.TRANSFORMERS_OFFLINE = '0';
       
-      // Resize the image to reduce memory usage
-      const resizedImageBuffer = await resizeImageBuffer(imageBuffer, image.type);
-      console.log(`Image resized from ${imageBuffer.byteLength} to ${resizedImageBuffer.length} bytes`);
-      
       // Load processor and model if not already loaded
       if (!processor) {
         processor = await AutoProcessor.from_pretrained(model_id, {
           cache_dir: env.cacheDir,
           local_files_only: false,
+          quantized: true
         });
       }
       console.log("Processor loaded, initializing vision model");
@@ -160,29 +129,24 @@ export async function POST(req: NextRequest) {
         vision_model = await CLIPVisionModelWithProjection.from_pretrained(model_id, {
           cache_dir: env.cacheDir,
           local_files_only: false,
-          quantized: true, // Use quantized model to reduce memory usage
+          quantized: true // Use quantized model to reduce memory usage
         });
       }
       
       console.log("Vision model loaded, processing image");
 
-      let image_obj;
-      try {
-        // Try to use the resized buffer directly
-        image_obj = await RawImage.fromBlob(new Blob([resizedImageBuffer], { type: image.type || 'image/jpeg' }));
-      } catch (e) {
-        console.log("Falling back to base64 method for image loading");
-        // Fallback: Convert to base64 and use that
-        const base64 = Buffer.from(resizedImageBuffer).toString('base64');
-        const dataUrl = `data:${image.type || 'image/jpeg'};base64,${base64}`;
-        image_obj = await RawImage.fromBlob(await (await fetch(dataUrl)).blob());
-      }
-    
+      // Create a blob from the image buffer
+      const blob = new Blob([imageBuffer], { type: image.type || 'image/jpeg' });
+      
+      // Process the image directly without resizing
+      const image_obj = await RawImage.fromBlob(blob);
       console.log("Image obj created");
          
+      // Process the image with the model
       const image_inputs = await processor(image_obj);
       console.log("Image processed");
       
+      // Generate the embedding
       const { image_embeds } = await vision_model(image_inputs);
       console.log("Image embedding generated");
       
@@ -247,16 +211,6 @@ export async function POST(req: NextRequest) {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
-    } finally {
-      // Force garbage collection to free up memory
-      if (global.gc) {
-        try {
-          global.gc();
-          console.log("Forced garbage collection to free memory");
-        } catch (e) {
-          console.log("Failed to force garbage collection:", e);
-        }
-      }
     }
   } catch (error) {
     console.error("Unhandled error in upload API:", error);
