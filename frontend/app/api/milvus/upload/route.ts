@@ -55,6 +55,24 @@ const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, errorMessage: st
   });
 };
 
+// Helper function to run a task in the background without waiting for it to complete
+const runInBackground = async (task: () => Promise<any>, taskName: string) => {
+  try {
+    // Start the task without awaiting it
+    task().then(() => {
+      console.log(`Background task '${taskName}' completed successfully`);
+    }).catch(error => {
+      console.error(`Background task '${taskName}' failed:`, error);
+    });
+    
+    // Return immediately
+    return true;
+  } catch (error) {
+    console.error(`Failed to start background task '${taskName}':`, error);
+    return false;
+  }
+};
+
 export async function POST(req: NextRequest) {
   console.log("Upload API called - Method:", req.method);
   let fileName = "";
@@ -194,84 +212,33 @@ export async function POST(req: NextRequest) {
       
       const imageVector = image_embeds.tolist()[0];
       
-      // Check if we're approaching the timeout limit
-      const timeElapsed = Date.now() - startTime;
-      const timeoutThreshold = 50000; // 50 seconds
+      // Always use the fire-and-forget pattern for Milvus insertion
+      console.log("Starting Milvus insertion in background");
       
-      if (timeElapsed > timeoutThreshold) {
-        // We're getting close to the 60s timeout, so return success early and handle Milvus insertion separately
-        console.log("Approaching timeout limit, returning success early");
-        
-        // Start Milvus insertion in the background without waiting
-        milvus.insert({
-          collection_name: COLLECTION_NAME,
-          fields_data: [{
-            [VECTOR_FIELD_NAME]: imageVector,
-            imageId: itemId,
-            url: imageUrl,
-            aiDescription: title,
-            photoDescription: description || "",
-            location: location,
-            submitter_email: session.user.email,
-            created_at: new Date().toISOString(),
-            blurHash: "",
-            ratio: 1.0, // Default aspect ratio
-          }],
-        }).then(() => {
-          console.log("Background Milvus insert successful");
-        }).catch(err => {
-          console.error("Background Milvus insert failed:", err);
-        });
-        
-        // Return success response immediately
-        return new Response(JSON.stringify({
-          success: true,
-          item: {
-            id: itemId,
-            title,
-            description,
-            location,
-            submitter_email: session.user.email,
-            created_at: new Date().toISOString(),
-            item_images: [{
-              image_url: imageUrl
-            }],
-            profiles: {
-              email: session.user.email
-            }
-          }
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
+      // Prepare the data for Milvus insertion
+      const milvusData = {
+        collection_name: COLLECTION_NAME,
+        fields_data: [{
+          [VECTOR_FIELD_NAME]: imageVector,
+          imageId: itemId,
+          url: imageUrl,
+          aiDescription: title,
+          photoDescription: description || "",
+          location: location,
+          submitter_email: session.user.email,
+          created_at: new Date().toISOString(),
+          blurHash: "",
+          ratio: 1.0, // Default aspect ratio
+        }],
+      };
       
-      // 7. Insert into Milvus with timeout
-      console.log("Inserting into Milvus");
-      await withTimeout(
-        milvus.insert({
-          collection_name: COLLECTION_NAME,
-          fields_data: [{
-            [VECTOR_FIELD_NAME]: imageVector,
-            imageId: itemId,
-            url: imageUrl,
-            aiDescription: title,
-            photoDescription: description || "",
-            location: location,
-            submitter_email: session.user.email,
-            created_at: new Date().toISOString(),
-            blurHash: "",
-            ratio: 1.0, // Default aspect ratio
-          }],
-        }),
-        10000, // 10 second timeout
-        "Milvus insertion timed out"
+      // Start Milvus insertion in the background without waiting
+      runInBackground(
+        () => milvus.insert(milvusData),
+        "Milvus insertion"
       );
       
-      console.log("Milvus insert successful");
-      console.log(`Total time: ${(Date.now() - startTime) / 1000}s`);
-      
-      // Return success response
+      // Return success response immediately
       return new Response(JSON.stringify({
         success: true,
         item: {
@@ -293,7 +260,7 @@ export async function POST(req: NextRequest) {
         headers: { 'Content-Type': 'application/json' }
       });
     } catch (processingError) {
-      console.error("Error in image processing or Milvus insertion:", processingError);
+      console.error("Error in image processing:", processingError);
       
       // Cleanup
       try {
@@ -304,7 +271,7 @@ export async function POST(req: NextRequest) {
       }
       
       return new Response(JSON.stringify({ 
-        error: 'Failed to process image or save to database: ' + 
+        error: 'Failed to process image: ' + 
           (processingError instanceof Error ? processingError.message : String(processingError)) 
       }), {
         status: 500,
