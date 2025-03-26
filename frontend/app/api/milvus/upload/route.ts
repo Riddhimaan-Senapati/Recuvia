@@ -36,11 +36,35 @@ const model_id = "Xenova/clip-vit-base-patch32";
 let processor: any = null;
 let vision_model: any = null;
 
+// Helper function to implement timeout for promises
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(`Timeout after ${timeoutMs}ms: ${errorMessage}`));
+    }, timeoutMs);
+    
+    promise
+      .then(result => {
+        clearTimeout(timeout);
+        resolve(result);
+      })
+      .catch(error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+  });
+};
+
 export async function POST(req: NextRequest) {
   console.log("Upload API called - Method:", req.method);
   let fileName = "";
+  let itemId = "";
+  let imageUrl = "";
   
   try {
+    // Track start time for performance monitoring
+    const startTime = Date.now();
+    
     // Get cookie store
     const cookieStore = cookies();
     
@@ -75,7 +99,7 @@ export async function POST(req: NextRequest) {
     console.log("Image size:", image.size, "bytes");
     
     // 3. Generate a unique ID for the item
-    const itemId = uuidv4();
+    itemId = uuidv4();
     
     // 4. Upload image to Supabase Storage
     const imageBuffer = await image.arrayBuffer();
@@ -84,9 +108,14 @@ export async function POST(req: NextRequest) {
     fileName = `${itemId}-${image.name.replace(/\s/g, '_')}`;
     console.log("Uploading to Supabase Storage:", fileName);
     
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('item-images')
-      .upload(fileName, imageBytes);
+    // Add timeout to Supabase upload
+    const { data: uploadData, error: uploadError } = await withTimeout(
+      supabase.storage
+        .from('item-images')
+        .upload(fileName, imageBytes),
+      15000, // 15 second timeout
+      "Supabase storage upload timed out"
+    );
     
     if (uploadError) {
       console.error('Storage upload error:', uploadError);
@@ -97,13 +126,14 @@ export async function POST(req: NextRequest) {
     }
     
     console.log("File uploaded successfully to Supabase");
+    console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
     
     // 5. Get the public URL for the uploaded image
     const { data: urlData } = supabase.storage
       .from('item-images')
       .getPublicUrl(fileName);
     
-    const imageUrl = urlData?.publicUrl;
+    imageUrl = urlData?.publicUrl || "";
     console.log("Image public URL:", imageUrl);
     
     // 6. Generate image embedding
@@ -117,23 +147,33 @@ export async function POST(req: NextRequest) {
       
       // Load processor and model if not already loaded
       if (!processor) {
-        processor = await AutoProcessor.from_pretrained(model_id, {
-          cache_dir: env.cacheDir,
-          local_files_only: false,
-          quantized: true
-        });
+        processor = await withTimeout(
+          AutoProcessor.from_pretrained(model_id, {
+            cache_dir: env.cacheDir,
+            local_files_only: false,
+            quantized: true
+          }),
+          20000, // 20 second timeout
+          "Model processor loading timed out"
+        );
       }
       console.log("Processor loaded, initializing vision model");
+      console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
       
       if (!vision_model) {
-        vision_model = await CLIPVisionModelWithProjection.from_pretrained(model_id, {
-          cache_dir: env.cacheDir,
-          local_files_only: false,
-          quantized: true // Use quantized model to reduce memory usage
-        });
+        vision_model = await withTimeout(
+          CLIPVisionModelWithProjection.from_pretrained(model_id, {
+            cache_dir: env.cacheDir,
+            local_files_only: false,
+            quantized: true
+          }),
+          20000, // 20 second timeout
+          "Vision model loading timed out"
+        );
       }
       
       console.log("Vision model loaded, processing image");
+      console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
 
       // Create a blob from the image buffer
       const blob = new Blob([imageBuffer], { type: image.type || 'image/jpeg' });
@@ -141,6 +181,7 @@ export async function POST(req: NextRequest) {
       // Process the image directly without resizing
       const image_obj = await RawImage.fromBlob(blob);
       console.log("Image obj created");
+      console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
          
       // Process the image with the model
       const image_inputs = await processor(image_obj);
@@ -149,28 +190,86 @@ export async function POST(req: NextRequest) {
       // Generate the embedding
       const { image_embeds } = await vision_model(image_inputs);
       console.log("Image embedding generated");
+      console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
       
       const imageVector = image_embeds.tolist()[0];
       
-      // 7. Insert into Milvus
+      // Check if we're approaching the timeout limit
+      const timeElapsed = Date.now() - startTime;
+      const timeoutThreshold = 50000; // 50 seconds
+      
+      if (timeElapsed > timeoutThreshold) {
+        // We're getting close to the 60s timeout, so return success early and handle Milvus insertion separately
+        console.log("Approaching timeout limit, returning success early");
+        
+        // Start Milvus insertion in the background without waiting
+        milvus.insert({
+          collection_name: COLLECTION_NAME,
+          fields_data: [{
+            [VECTOR_FIELD_NAME]: imageVector,
+            imageId: itemId,
+            url: imageUrl,
+            aiDescription: title,
+            photoDescription: description || "",
+            location: location,
+            submitter_email: session.user.email,
+            created_at: new Date().toISOString(),
+            blurHash: "",
+            ratio: 1.0, // Default aspect ratio
+          }],
+        }).then(() => {
+          console.log("Background Milvus insert successful");
+        }).catch(err => {
+          console.error("Background Milvus insert failed:", err);
+        });
+        
+        // Return success response immediately
+        return new Response(JSON.stringify({
+          success: true,
+          item: {
+            id: itemId,
+            title,
+            description,
+            location,
+            submitter_email: session.user.email,
+            created_at: new Date().toISOString(),
+            item_images: [{
+              image_url: imageUrl
+            }],
+            profiles: {
+              email: session.user.email
+            }
+          }
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      
+      // 7. Insert into Milvus with timeout
       console.log("Inserting into Milvus");
-      await milvus.insert({
-        collection_name: COLLECTION_NAME,
-        fields_data: [{
-          [VECTOR_FIELD_NAME]: imageVector,
-          imageId: itemId,
-          url: imageUrl,
-          aiDescription: title,
-          photoDescription: description || "",
-          location: location,
-          submitter_email: session.user.email,
-          created_at: new Date().toISOString(),
-          blurHash: "",
-          ratio: 1.0, // Default aspect ratio
-        }],
-      });
+      await withTimeout(
+        milvus.insert({
+          collection_name: COLLECTION_NAME,
+          fields_data: [{
+            [VECTOR_FIELD_NAME]: imageVector,
+            imageId: itemId,
+            url: imageUrl,
+            aiDescription: title,
+            photoDescription: description || "",
+            location: location,
+            submitter_email: session.user.email,
+            created_at: new Date().toISOString(),
+            blurHash: "",
+            ratio: 1.0, // Default aspect ratio
+          }],
+        }),
+        10000, // 10 second timeout
+        "Milvus insertion timed out"
+      );
       
       console.log("Milvus insert successful");
+      console.log(`Total time: ${(Date.now() - startTime) / 1000}s`);
       
       // Return success response
       return new Response(JSON.stringify({
