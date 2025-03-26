@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ImageIcon, SearchIcon, Upload, Trash2, Search } from 'lucide-react';
+import { ImageIcon, SearchIcon, Upload, Trash2, Search, CheckCircle, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -61,10 +61,76 @@ export default function MainPage() {
   const [searchLoading, setSearchLoading] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
   
+  // New states for Milvus upload status
+  const [uploadedItemId, setUploadedItemId] = useState<string | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'complete' | 'error'>('idle');
+  const [statusMessage, setStatusMessage] = useState<string>('');
+  const [statusCheckCount, setStatusCheckCount] = useState<number>(0);
+  
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const searchFileInputRef = useRef<HTMLInputElement | null>(null);
   const supabase = createClientComponentClient();
   const router = useRouter();
+  
+  // Function to check if an image has been indexed in Milvus
+  const checkMilvusStatus = async (imageId: string) => {
+    try {
+      const response = await fetch(`/api/milvus/status?imageId=${imageId}`);
+      const data = await response.json();
+      
+      if (data.exists) {
+        console.log('Image successfully indexed in Milvus!');
+        setUploadStatus('complete');
+        setStatusMessage('Item fully processed and searchable');
+        return true;
+      } else {
+        console.log('Image still being processed in Milvus...');
+        setUploadStatus('processing');
+        setStatusMessage('Item uploaded, processing in database...');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error checking Milvus status:', error);
+      // Don't change status to error here, just log the error
+      return false;
+    }
+  };
+  
+  // Effect to poll for Milvus status when an item is uploaded
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    if (uploadedItemId && uploadStatus === 'processing') {
+      // Start polling every 3 seconds
+      intervalId = setInterval(async () => {
+        const exists = await checkMilvusStatus(uploadedItemId);
+        
+        // Increment the check count
+        setStatusCheckCount(prev => {
+          const newCount = prev + 1;
+          
+          // If we've checked 10 times (30 seconds) and still not complete,
+          // stop checking but don't mark as error
+          if (newCount >= 10 && !exists) {
+            if (intervalId) clearInterval(intervalId);
+            setStatusMessage('Item may take longer to process. You can continue using the app.');
+          }
+          
+          return newCount;
+        });
+        
+        // If the image is found in Milvus, stop polling
+        if (exists && intervalId) {
+          clearInterval(intervalId);
+        }
+      }, 3000);
+    }
+    
+    // Clean up interval on unmount or when status changes
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [uploadedItemId, uploadStatus]);
   
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -102,6 +168,11 @@ export default function MainPage() {
       return;
     }
     
+    // Reset status states
+    setUploadedItemId(null);
+    setUploadStatus('uploading');
+    setStatusMessage('Uploading item...');
+    setStatusCheckCount(0);
     setUploading(true);
     
     try {
@@ -143,17 +214,30 @@ export default function MainPage() {
         throw new Error(result?.error || `Upload failed with status: ${response.status}`);
       }
       
-      // Reset form
+      // Store the uploaded item ID for status checking
+      if (result?.item?.id) {
+        setUploadedItemId(result.item.id);
+        setUploadStatus('processing');
+        setStatusMessage('Item uploaded, processing in database...');
+        
+        // Start checking status after a short delay
+        setTimeout(() => {
+          checkMilvusStatus(result.item.id);
+        }, 2000);
+      }
+      
+      // Reset form fields but keep status information
       setTitle('');
       setDescription('');
       setLocation('');
       setImageFile(null);
       setImagePreview(null);
       
-      alert('Item uploaded successfully!');
+      // Don't show alert here, we'll show status in the UI
     } catch (error) {
       console.error('Error uploading item:', error);
-      alert('Error uploading item: ' + (error as Error).message);
+      setUploadStatus('error');
+      setStatusMessage(`Error: ${(error as Error).message}`);
     } finally {
       setUploading(false);
     }
@@ -619,6 +703,48 @@ export default function MainPage() {
                     >
                       {uploading ? 'Uploading...' : 'Upload Found Item'}
                     </Button>
+                    
+                    {/* Upload Status Indicator */}
+                    {uploadStatus !== 'idle' && (
+                      <div className={`mt-4 p-3 rounded-md ${
+                        uploadStatus === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
+                        uploadStatus === 'complete' ? 'bg-green-50 text-green-700 border border-green-200' :
+                        'bg-blue-50 text-blue-700 border border-blue-200'
+                      }`}>
+                        <div className="flex items-center">
+                          {uploadStatus === 'error' && (
+                            <div className="mr-2 text-red-500">⚠️</div>
+                          )}
+                          {uploadStatus === 'complete' && (
+                            <CheckCircle className="mr-2 h-5 w-5 text-green-500" />
+                          )}
+                          {(uploadStatus === 'uploading' || uploadStatus === 'processing') && (
+                            <Clock className="mr-2 h-5 w-5 text-blue-500 animate-pulse" />
+                          )}
+                          <div>
+                            <p className="font-medium">
+                              {uploadStatus === 'error' ? 'Upload Error' :
+                               uploadStatus === 'complete' ? 'Success!' :
+                               uploadStatus === 'uploading' ? 'Uploading...' :
+                               'Processing...'}
+                            </p>
+                            <p className="text-sm">{statusMessage}</p>
+                          </div>
+                        </div>
+                        
+                        {uploadStatus === 'complete' && (
+                          <div className="mt-2 text-sm">
+                            <p>Your item has been successfully uploaded and is now searchable.</p>
+                          </div>
+                        )}
+                        
+                        {uploadStatus === 'processing' && statusCheckCount > 5 && (
+                          <div className="mt-2 text-sm">
+                            <p>This may take a moment. You can continue using the app.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </form>
                 </Card>
               </div>
