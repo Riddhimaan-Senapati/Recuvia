@@ -60,8 +60,8 @@ export default function Home() {
             <span className="text-found">Find</span> What You've <span className="text-lost">Lost</span>
           </h1>
           <p className="mt-6 max-w-[42rem] text-lg text-muted-foreground sm:text-xl">
-            Using advanced AI-powered image recognition to reunite you with your lost items.
-            Simply upload a photo and we'll search our database of found items.
+            Using AI-powered semantic search to connect lost items with their owners.
+            Search by text description or upload a photo to find visual matches.
           </p>
           <div className="mt-12 flex flex-col gap-4 sm:flex-row">
             {user ? (
@@ -74,15 +74,15 @@ export default function Home() {
             ) : (
               <>
                 <Button size="lg" className="gap-2 bg-lost text-lost-foreground hover:bg-lost/90" asChild>
-                  <Link href="/main">
+                  <Link href="/auth/signup">
                     <Upload className="h-5 w-5" />
-                    Upload Lost Item
+                    Sign Up to Report Items
                   </Link>
                 </Button>
                 <Button size="lg" className="gap-2 bg-found text-found-foreground hover:bg-found/90" asChild>
-                  <Link href="/main">
+                  <Link href="/auth/signin">
                     <SearchIcon className="h-5 w-5" />
-                    Browse Found Items
+                    Sign In to Search
                   </Link>
                 </Button>
               </>
@@ -98,27 +98,62 @@ export default function Home() {
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-lost/10">
               <Upload className="h-6 w-6 text-lost" />
             </div>
-            <h3 className="mb-2 text-xl font-semibold text-lost">Upload Your Item</h3>
+            <h3 className="mb-2 text-xl font-semibold text-lost">Report Found Items</h3>
             <p className="text-muted-foreground">
-              Take a photo of your lost item and upload it to our platform.
+              Upload photos and details of items you've found to help reunite them with their owners.
             </p>
           </Card>
           <Card className="p-6 border-found/20">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-found/10">
               <SearchIcon className="h-6 w-6 text-found" />
             </div>
-            <h3 className="mb-2 text-xl font-semibold text-found">AI-Powered Search</h3>
+            <h3 className="mb-2 text-xl font-semibold text-found">Dual Search Methods</h3>
             <p className="text-muted-foreground">
-              Our advanced AI scans through thousands of found items to find potential matches.
+              Find your lost items using text descriptions or by uploading a similar image for visual matching.
             </p>
           </Card>
           <Card className="p-6 border-found/20">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-found/10">
               <ImageIcon className="h-6 w-6 text-found" />
             </div>
-            <h3 className="mb-2 text-xl font-semibold text-found">Get Matched</h3>
+            <h3 className="mb-2 text-xl font-semibold text-found">Vector Similarity</h3>
             <p className="text-muted-foreground">
-              Review matches and connect with finders to retrieve your belongings.
+              Our platform uses vector embeddings and Milvus database to find the most similar matches to your query.
+            </p>
+          </Card>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="container px-4 py-16 border-t">
+        <h2 className="text-3xl font-bold text-center mb-12">How FindR Works</h2>
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="p-6 border-primary/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl font-bold">1</div>
+            <h3 className="mb-2 text-xl font-semibold">Sign Up</h3>
+            <p className="text-muted-foreground">
+              Create an account to access all features of the platform.
+            </p>
+          </Card>
+          <Card className="p-6 border-primary/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl font-bold">2</div>
+            <h3 className="mb-2 text-xl font-semibold">Report or Search</h3>
+            <p className="text-muted-foreground">
+              Upload found items or search for your lost belongings.
+            </p>
+          </Card>
+          <Card className="p-6 border-primary/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl font-bold">3</div>
+            <h3 className="mb-2 text-xl font-semibold">Review Matches</h3>
+            <p className="text-muted-foreground">
+              Browse through potential matches with similarity scores.
+            </p>
+          </Card>
+          <Card className="p-6 border-primary/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl font-bold">4</div>
+            <h3 className="mb-2 text-xl font-semibold">Reconnect</h3>
+            <p className="text-muted-foreground">
+              Contact the submitter to arrange retrieval of your item.
             </p>
           </Card>
         </div>
@@ -129,12 +164,12 @@ export default function Home() {
         <div className="container flex flex-col md:flex-row h-auto md:h-16 py-4 md:py-0 items-center justify-between">
           <div className="flex flex-col items-center md:items-start space-y-2 md:space-y-0">
             <span className="text-sm text-muted-foreground">
-              © 2025 FindR. All rights reserved.
+              &copy; 2025 FindR. All rights reserved.
             </span>
           </div>
           
           <span className="text-sm text-muted-foreground my-2 md:my-0">
-            Built with ❤️ by Riddhimaan Senapati
+            Built with <span className="text-red-500">❤</span> by Riddhimaan Senapati
           </span>
           
           <div className="flex items-center space-x-4 mt-4 md:mt-0">

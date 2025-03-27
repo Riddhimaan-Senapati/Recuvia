@@ -61,11 +61,14 @@ export default function MainPage() {
   const [searchLoading, setSearchLoading] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
   
+  // New states for search progress indication
+  const [searchProgress, setSearchProgress] = useState<'idle' | 'searching' | 'complete' | 'error'>('idle');
+  const [searchStatusMessage, setSearchStatusMessage] = useState<string>('');
+  
   // New states for Milvus upload status
   const [uploadedItemId, setUploadedItemId] = useState<string | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'processing' | 'complete' | 'error'>('idle');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'complete' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState<string>('');
-  const [statusCheckCount, setStatusCheckCount] = useState<number>(0);
   
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const searchFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -85,13 +88,11 @@ export default function MainPage() {
         return true;
       } else {
         console.log('Image still being processed in Milvus...');
-        setUploadStatus('processing');
         setStatusMessage('Item uploaded, processing in database...');
         return false;
       }
     } catch (error) {
       console.error('Error checking Milvus status:', error);
-      // Don't change status to error here, just log the error
       return false;
     }
   };
@@ -100,33 +101,16 @@ export default function MainPage() {
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
     
-    if (uploadedItemId && uploadStatus === 'processing') {
-      // Start polling every 3 seconds
+    if (uploadedItemId && uploadStatus === 'complete') {
       intervalId = setInterval(async () => {
         const exists = await checkMilvusStatus(uploadedItemId);
         
-        // Increment the check count
-        setStatusCheckCount(prev => {
-          const newCount = prev + 1;
-          
-          // If we've checked 10 times (30 seconds) and still not complete,
-          // stop checking but don't mark as error
-          if (newCount >= 10 && !exists) {
-            if (intervalId) clearInterval(intervalId);
-            setStatusMessage('Item may take longer to process. You can continue using the app.');
-          }
-          
-          return newCount;
-        });
-        
-        // If the image is found in Milvus, stop polling
         if (exists && intervalId) {
           clearInterval(intervalId);
         }
       }, 3000);
     }
     
-    // Clean up interval on unmount or when status changes
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
@@ -168,45 +152,33 @@ export default function MainPage() {
       return;
     }
     
-    // Reset status states
     setUploadedItemId(null);
     setUploadStatus('uploading');
     setStatusMessage('Uploading item...');
-    setStatusCheckCount(0);
     setUploading(true);
     
     try {
-      console.log("Building form data for upload");
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', description || '');
       formData.append('location', location);
       formData.append('image', imageFile);
       
-      console.log("Starting upload request");
       const response = await fetch('/api/milvus/upload', {
         method: 'POST',
         body: formData,
       });
       
-      console.log("Upload response received:", response.status);
-      
-      // Get response text first
       const text = await response.text();
-      console.log("Response text length:", text.length);
       
-      // Try to parse it as JSON if it's not empty
       let result;
       if (text && text.trim()) {
         try {
           result = JSON.parse(text);
-          console.log("Parsed response:", result);
         } catch (e) {
-          console.error("Failed to parse response:", text);
           throw new Error(`Invalid response format: ${text.substring(0, 100)}...`);
         }
       } else {
-        console.error("Empty response received");
         throw new Error(`Server returned empty response with status: ${response.status}`);
       }
       
@@ -214,26 +186,18 @@ export default function MainPage() {
         throw new Error(result?.error || `Upload failed with status: ${response.status}`);
       }
       
-      // Store the uploaded item ID for status checking
       if (result?.item?.id) {
         setUploadedItemId(result.item.id);
-        setUploadStatus('processing');
-        setStatusMessage('Item uploaded, processing in database...');
-        
-        // Start checking status after a short delay
-        setTimeout(() => {
-          checkMilvusStatus(result.item.id);
-        }, 2000);
+        setUploadStatus('complete');
+        setStatusMessage('Item uploaded successfully!');
       }
       
-      // Reset form fields but keep status information
       setTitle('');
       setDescription('');
       setLocation('');
       setImageFile(null);
       setImagePreview(null);
       
-      // Don't show alert here, we'll show status in the UI
     } catch (error) {
       console.error('Error uploading item:', error);
       setUploadStatus('error');
@@ -250,6 +214,8 @@ export default function MainPage() {
     }
     
     setLoading(true);
+    setSearchProgress('searching');
+    setSearchStatusMessage('Searching for items...');
     
     try {
       const response = await fetch('/api/milvus/search/text', {
@@ -267,9 +233,13 @@ export default function MainPage() {
       if (!response.ok) throw new Error(data.error || 'Search failed');
       
       setItems(data.items || []);
+      setSearchProgress('complete');
+      setSearchStatusMessage(`Found ${data.items?.length || 0} items`);
     } catch (error) {
       console.error('Error searching:', error);
       setItems([]);
+      setSearchProgress('error');
+      setSearchStatusMessage(`Error: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -280,6 +250,8 @@ export default function MainPage() {
     
     setSearchLoading(true);
     setLoading(true);
+    setSearchProgress('searching');
+    setSearchStatusMessage('Processing image search...');
     
     try {
       const formData = new FormData();
@@ -295,17 +267,91 @@ export default function MainPage() {
       if (!response.ok) throw new Error(data.error || 'Search failed');
       
       setItems(data.items || []);
+      setSearchProgress('complete');
+      setSearchStatusMessage(`Found ${data.items?.length || 0} items`);
     } catch (error) {
       console.error('Error searching by image:', error);
       setItems([]);
+      setSearchProgress('error');
+      setSearchStatusMessage(`Error: ${(error as Error).message}`);
     } finally {
       setSearchLoading(false);
       setLoading(false);
     }
   };
   
+  const handleSearchWithItem = async (imageUrl: string, title: string) => {
+    setLoading(true);
+    setSearchProgress('searching');
+    setSearchStatusMessage(`Finding items similar to "${title}"...`);
+    
+    try {
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+      }
+      
+      const imageBlob = await imageResponse.blob();
+      
+      const fileName = `search-${Date.now()}.jpg`;
+      const file = new File([imageBlob], fileName, { type: 'image/jpeg' });
+      
+      setSearchImage(file);
+      setSearchImagePreview(imageUrl);
+      
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      console.log("Sending search request with image from an existing item...");
+      
+      const response = await fetch('/api/milvus/search/image', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const text = await response.text();
+      
+      console.log(`Response status: ${response.status}`);
+      console.log(`Response text: ${text}`);
+      
+      if (!response.ok) {
+        throw new Error(`Search API error: ${response.status} - ${text}`);
+      }
+      
+      if (!text) {
+        console.warn("Received empty response");
+        setItems([]);
+        setSearchProgress('error');
+        setSearchStatusMessage('Error: Empty response from server');
+        return;
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Failed to parse response as JSON: ${text}`);
+      }
+      
+      setItems(data.items || []);
+      setSearchProgress('complete');
+      setSearchStatusMessage(`Found ${data.items?.length || 0} similar items`);
+      
+      if (activeTab !== 'lost') {
+        setActiveTab('lost');
+      }
+    } catch (error) {
+      console.error('Error searching by existing image:', error);
+      alert(`Error searching with this image: ${(error as Error).message}`);
+      setItems([]);
+      setSearchProgress('error');
+      setSearchStatusMessage(`Error: ${(error as Error).message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   const handleSignOut = () => {
-    // Fix signOut call by ensuring it's a function
     if (typeof signOut === 'function') {
       signOut();
     } else {
@@ -321,7 +367,6 @@ export default function MainPage() {
     setDeleting(true);
     
     try {
-      // Extract the filename from the URL
       const url = item.item_images[0].image_url;
       const fileName = url.split('/').pop();
       
@@ -342,7 +387,6 @@ export default function MainPage() {
         throw new Error(result.error || 'Failed to delete item');
       }
       
-      // Remove the deleted item from the items state
       setItems(items.filter(i => i.id !== item.id));
       
       alert('Item deleted successfully!');
@@ -360,89 +404,16 @@ export default function MainPage() {
     }
   };
   
-  // Add a new function to perform image search with an existing image URL
-  const handleSearchWithItem = async (imageUrl: string, title: string) => {
-    setLoading(true);
-    
-    try {
-      // Fetch the image as a blob
-      const imageResponse = await fetch(imageUrl);
-      if (!imageResponse.ok) {
-        throw new Error(`Failed to fetch image: ${imageResponse.status}`);
-      }
-      
-      const imageBlob = await imageResponse.blob();
-      
-      // Create a file object from the blob
-      const fileName = `search-${Date.now()}.jpg`;
-      const file = new File([imageBlob], fileName, { type: 'image/jpeg' });
-      
-      // Set the search image preview for user feedback
-      setSearchImage(file);
-      setSearchImagePreview(imageUrl);
-      
-      // Create a FormData object for the API request
-      const formData = new FormData();
-      formData.append('image', file);
-      
-      console.log("Sending search request with image from an existing item...");
-      
-      const response = await fetch('/api/milvus/search/image', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      const text = await response.text(); // Get the raw response text
-      
-      console.log(`Response status: ${response.status}`);
-      console.log(`Response text: ${text}`);
-      
-      if (!response.ok) {
-        throw new Error(`Search API error: ${response.status} - ${text}`);
-      }
-      
-      // If the response is empty, handle that case
-      if (!text) {
-        console.warn("Received empty response");
-        setItems([]);
-        return;
-      }
-      
-      // Try to parse the JSON
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        throw new Error(`Failed to parse response as JSON: ${text}`);
-      }
-      
-      // Set search results
-      setItems(data.items || []);
-      
-      // Switch to Lost tab if not already there
-      if (activeTab !== 'lost') {
-        setActiveTab('lost');
-      }
-    } catch (error) {
-      console.error('Error searching by existing image:', error);
-      alert(`Error searching with this image: ${(error as Error).message}`);
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   if (authLoading) {
     return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
   }
   
   if (!user) {
-    return null; // The AuthContext will handle redirection
+    return null; 
   }
   
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Navigation */}
       <header className="flex justify-between items-center mb-8">
         <Link href="/" className="text-2xl font-bold">FindR</Link>
         <div className="space-x-4">
@@ -471,10 +442,8 @@ export default function MainPage() {
         </div>
       </header>
 
-      {/* Main Content - Only show if user is authenticated */}
       {user ? (
         <main>
-          {/* Tab Description Section */}
           <div className="mb-6 text-center">
             <p className="text-muted-foreground">
               Use the <span className="font-semibold text-lost">Lost Items</span> tab to search for items you've lost.
@@ -498,7 +467,6 @@ export default function MainPage() {
               </TabsTrigger>
             </TabsList>
             
-            {/* Lost Items Tab */}
             <TabsContent value="lost">
               <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex gap-2">
@@ -511,9 +479,19 @@ export default function MainPage() {
                   <Button 
                     onClick={handleTextSearch}
                     className="bg-lost text-lost-foreground hover:bg-lost/90"
+                    disabled={searchProgress === 'searching'}
                   >
-                    <SearchIcon className="mr-2 h-4 w-4" />
-                    Search
+                    {searchProgress === 'searching' ? (
+                      <>
+                        <Clock className="mr-2 h-4 w-4 animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      <>
+                        <SearchIcon className="mr-2 h-4 w-4" />
+                        Search
+                      </>
+                    )}
                   </Button>
                 </div>
                 
@@ -551,11 +529,42 @@ export default function MainPage() {
                     disabled={!searchImage || searchLoading}
                     className="bg-lost text-lost-foreground hover:bg-lost/90"
                   >
-                    {searchLoading ? 'Searching...' : 'Find Similar'}
+                    {searchLoading ? (
+                      <>
+                        <Clock className="mr-2 h-4 w-4 animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="mr-2 h-4 w-4" />
+                        Find Similar
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
               
+              {searchProgress !== 'idle' && (
+                <div className={`mb-4 p-3 rounded-md ${
+                  searchProgress === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
+                  searchProgress === 'complete' ? 'bg-green-50 text-green-700 border border-green-200' :
+                  'bg-blue-50 text-blue-700 border border-blue-200'
+                }`}>
+                  <div className="flex items-center">
+                    {searchProgress === 'error' && (
+                      <div className="mr-2 text-red-500">⚠️</div>
+                    )}
+                    {searchProgress === 'complete' && (
+                      <CheckCircle className="mr-2 h-5 w-5 text-green-500" />
+                    )}
+                    {searchProgress === 'searching' && (
+                      <Clock className="mr-2 h-5 w-5 text-blue-500 animate-pulse" />
+                    )}
+                    <p className="font-medium">{searchStatusMessage}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {loading ? (
                   <p className="col-span-3 text-center py-8">Searching for items...</p>
@@ -571,14 +580,11 @@ export default function MainPage() {
                             className="object-cover rounded"
                           />
                           
-                          {/* Overlay on hover */}
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded flex flex-col justify-between p-2 text-white">
-                            {/* Score display at top */}
                             <div className="text-sm font-semibold bg-black/60 self-start px-2 py-1 rounded">
                               Score: {item.score ? item.score.toFixed(4) : 'N/A'}
                             </div>
                             
-                            {/* Search button at bottom */}
                             <Button 
                               onClick={() => handleSearchWithItem(item.item_images[0].image_url, item.title)}
                               className="self-end bg-lost text-lost-foreground hover:bg-lost/90"
@@ -625,7 +631,6 @@ export default function MainPage() {
               </div>
             </TabsContent>
             
-            {/* Found Items Tab */}
             <TabsContent value="found">
               <div className="mb-8">
                 <Card className="p-6 border-found/20">
@@ -701,10 +706,16 @@ export default function MainPage() {
                       disabled={uploading || !imageFile || !title || !location}
                       className="w-full bg-found text-found-foreground hover:bg-found/90"
                     >
-                      {uploading ? 'Uploading...' : 'Upload Found Item'}
+                      {uploading ? (
+                        <>
+                          <Clock className="mr-2 h-4 w-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        'Upload Found Item'
+                      )}
                     </Button>
                     
-                    {/* Upload Status Indicator */}
                     {uploadStatus !== 'idle' && (
                       <div className={`mt-4 p-3 rounded-md ${
                         uploadStatus === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
@@ -718,15 +729,14 @@ export default function MainPage() {
                           {uploadStatus === 'complete' && (
                             <CheckCircle className="mr-2 h-5 w-5 text-green-500" />
                           )}
-                          {(uploadStatus === 'uploading' || uploadStatus === 'processing') && (
+                          {uploadStatus === 'uploading' && (
                             <Clock className="mr-2 h-5 w-5 text-blue-500 animate-pulse" />
                           )}
                           <div>
                             <p className="font-medium">
                               {uploadStatus === 'error' ? 'Upload Error' :
                                uploadStatus === 'complete' ? 'Success!' :
-                               uploadStatus === 'uploading' ? 'Uploading...' :
-                               'Processing...'}
+                               'Uploading...'}
                             </p>
                             <p className="text-sm">{statusMessage}</p>
                           </div>
@@ -735,12 +745,6 @@ export default function MainPage() {
                         {uploadStatus === 'complete' && (
                           <div className="mt-2 text-sm">
                             <p>Your item has been successfully uploaded and is now searchable.</p>
-                          </div>
-                        )}
-                        
-                        {uploadStatus === 'processing' && statusCheckCount > 5 && (
-                          <div className="mt-2 text-sm">
-                            <p>This may take a moment. You can continue using the app.</p>
                           </div>
                         )}
                       </div>
