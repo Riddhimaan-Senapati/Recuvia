@@ -202,41 +202,89 @@ export async function POST(req: NextRequest) {
       // Use the after function for background processing
       after(async () => {
         try {
-          console.log("Background processing started for item:", itemId);
+          console.log("Background processing started for image:", itemId);
           
           // Update status
           processingStatus[itemId] = {
             status: 'processing',
-            message: 'Inserting into vector database',
+            message: 'Preparing to insert into vector database',
             timestamp: Date.now()
           };
           
-          // Insert into Milvus
+          // Insert into Milvus with timeout protection
           console.log("Inserting into Milvus...");
-          const insertResult = await milvus.insert({
-            collection_name: COLLECTION_NAME,
-            fields_data: [{
-              [VECTOR_FIELD_NAME]: imageVector,
-              imageId: itemId,
-              url: imageUrl,
-              aiDescription: title,
-              photoDescription: description || "",
-              location: location,
-              submitter_email: session.user.email,
-              created_at: new Date().toISOString(),
-              blurHash: "",
-              ratio: 1.0, // Default aspect ratio
-            }],
+          
+          // Set a timeout for the Milvus operation
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => {
+              reject(new Error('Milvus insert operation timed out after 30 seconds'));
+            }, 30000); // 30 second timeout
           });
           
-          console.log("Milvus insert result:", insertResult);
-          
-          // Update status to complete
-          processingStatus[itemId] = {
-            status: 'complete',
-            message: 'Successfully inserted into Milvus',
-            timestamp: Date.now()
-          };
+          // Attempt the Milvus insert with timeout protection
+          try {
+            const insertResult = await Promise.race([
+              milvus.insert({
+                collection_name: COLLECTION_NAME,
+                fields_data: [{
+                  [VECTOR_FIELD_NAME]: imageVector,
+                  imageId: itemId,
+                  url: imageUrl,
+                  aiDescription: title,
+                  photoDescription: description || "",
+                  location: location,
+                  submitter_email: session.user.email,
+                  created_at: new Date().toISOString(),
+                  blurHash: "",
+                  ratio: 1.0, // Default aspect ratio
+                }],
+              }),
+              timeoutPromise
+            ]);
+            
+            console.log("Milvus insert result:", insertResult);
+            
+            // Update status to complete
+            processingStatus[itemId] = {
+              status: 'complete',
+              message: 'Successfully inserted into Milvus',
+              timestamp: Date.now()
+            };
+          } catch (insertError) {
+            console.error("Milvus insert error:", insertError);
+            
+            // Try again with a simpler approach if the first attempt failed
+            try {
+              console.log("Retrying Milvus insert with simplified approach...");
+              processingStatus[itemId] = {
+                status: 'processing',
+                message: 'Retrying database insertion',
+                timestamp: Date.now()
+              };
+              
+              const insertResult = await milvus.insert({
+                collection_name: COLLECTION_NAME,
+                fields_data: [{
+                  [VECTOR_FIELD_NAME]: imageVector,
+                  imageId: itemId,
+                  url: imageUrl,
+                  created_at: new Date().toISOString(),
+                }],
+              });
+              
+              console.log("Simplified Milvus insert result:", insertResult);
+              
+              // Update status to complete
+              processingStatus[itemId] = {
+                status: 'complete',
+                message: 'Successfully inserted into Milvus (simplified)',
+                timestamp: Date.now()
+              };
+            } catch (retryError) {
+              console.error("Retry Milvus insert failed:", retryError);
+              throw retryError; // Re-throw to be caught by outer catch
+            }
+          }
           
           // Clean up status after some time (e.g., 1 hour)
           setTimeout(() => {
