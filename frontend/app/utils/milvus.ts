@@ -48,8 +48,12 @@ import {
           token: process.env.TOKEN,
           channelOptions: {
             // starter cluster will throw rejected by server because of excess ping, so we need to adjust the ping interval
-            "grpc.keepalive_time_ms": 40000, // Adjust the time interval between pings
-            "grpc.keepalive_timeout_ms": 5000, // Adjust the time to wait for a response to a ping
+            "grpc.keepalive_time_ms": 10000, // Reduce from 40000
+    "grpc.keepalive_timeout_ms": 3000, // Reduce from 5000
+    "grpc.max_reconnect_backoff_ms": 5000, // Add reconnection backoff
+    "grpc.min_reconnect_backoff_ms": 1000, // Add minimum reconnection backoff
+    "grpc.max_send_message_length": 4 * 1024 * 1024, // Limit message size
+    "grpc.max_receive_message_length": 4 * 1024 * 1024, // Limit message size
           },
         });
         // Create a new collection
