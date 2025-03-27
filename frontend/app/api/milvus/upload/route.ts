@@ -28,7 +28,7 @@ try {
 // IMPORTANT: Use Node.js runtime with Fluid Compute
 export const runtime = "nodejs"; 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300; // 5 minutes for Fluid Compute
+export const maxDuration = 60;
 
 // Smaller model with lower memory footprint
 const model_id = "Xenova/clip-vit-base-patch32";
