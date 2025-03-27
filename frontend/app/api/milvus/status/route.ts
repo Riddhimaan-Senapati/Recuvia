@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { milvus, COLLECTION_NAME } from '@/app/utils/milvus';
+import { processingStatus } from '@/app/utils/processingStatus';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,6 @@ interface ProcessingStatus {
 // Import the processingStatus from the upload route
 // In a real production app, this would be stored in a database or Redis
 // This is a simplified approach for demonstration purposes
-import { processingStatus } from '../upload/route';
 
 export async function GET(req: NextRequest) {
   try {

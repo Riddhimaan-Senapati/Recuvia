@@ -7,6 +7,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 import { after } from 'next/server';
+import { processingStatus } from '@/app/utils/processingStatus';
 
 // For embedding generation in server
 import { AutoProcessor, RawImage, CLIPVisionModelWithProjection, env } from "@xenova/transformers";
@@ -34,21 +35,26 @@ export const maxDuration = 60;
 const model_id = "Xenova/clip-vit-base-patch32";
 
 // Lazy-loaded processor and model
-let processor: any = null;
-let vision_model: any = null;
+let _processor: any = null;
+let _model: any = null;
 
-// Track processing status
-interface ProcessingStatus {
-  [key: string]: {
-    status: 'processing' | 'complete' | 'error';
-    message?: string;
-    timestamp: number;
+// Function to get processor (lazy loading)
+async function getProcessor() {
+  if (!_processor) {
+    console.log("Initializing processor...");
+    _processor = await AutoProcessor.from_pretrained(model_id);
   }
+  return _processor;
 }
 
-// In-memory status tracking (will reset on deployment)
-// In production, use a persistent store like Redis or DynamoDB
-export const processingStatus: ProcessingStatus = {};
+// Function to get model (lazy loading)
+async function getModel() {
+  if (!_model) {
+    console.log("Initializing model...");
+    _model = await CLIPVisionModelWithProjection.from_pretrained(model_id);
+  }
+  return _model;
+}
 
 export async function POST(req: NextRequest) {
   console.log("Upload API called - Method:", req.method);
@@ -158,23 +164,11 @@ export async function POST(req: NextRequest) {
       process.env.TRANSFORMERS_OFFLINE = '0';
       
       // Load processor and model if not already loaded
-      if (!processor) {
-        processor = await AutoProcessor.from_pretrained(model_id, {
-          cache_dir: env.cacheDir,
-          local_files_only: false,
-          quantized: true
-        });
-      }
+      const processor = await getProcessor();
       console.log("Processor loaded, initializing vision model");
       console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
       
-      if (!vision_model) {
-        vision_model = await CLIPVisionModelWithProjection.from_pretrained(model_id, {
-          cache_dir: env.cacheDir,
-          local_files_only: false,
-          quantized: true
-        });
-      }
+      const vision_model = await getModel();
       
       console.log("Vision model loaded, processing image");
       console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
