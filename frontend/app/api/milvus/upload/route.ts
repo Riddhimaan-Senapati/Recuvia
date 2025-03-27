@@ -36,25 +36,6 @@ const model_id = "Xenova/clip-vit-base-patch32";
 let processor: any = null;
 let vision_model: any = null;
 
-// Helper function to implement timeout for promises
-const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> => {
-  return new Promise<T>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error(`Timeout after ${timeoutMs}ms: ${errorMessage}`));
-    }, timeoutMs);
-    
-    promise
-      .then(result => {
-        clearTimeout(timeout);
-        resolve(result);
-      })
-      .catch(error => {
-        clearTimeout(timeout);
-        reject(error);
-      });
-  });
-};
-
 export async function POST(req: NextRequest) {
   console.log("Upload API called - Method:", req.method);
   let fileName = "";
@@ -109,14 +90,10 @@ export async function POST(req: NextRequest) {
     fileName = `${itemId}-${image.name.replace(/\s/g, '_')}`;
     console.log("Uploading to Supabase Storage:", fileName);
     
-    // Add timeout to Supabase upload
-    const { data: uploadData, error: uploadError } = await withTimeout(
-      supabase.storage
-        .from('item-images')
-        .upload(fileName, imageBytes),
-      15000, // 15 second timeout
-      "Supabase storage upload timed out"
-    );
+    // Upload to Supabase
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('item-images')
+      .upload(fileName, imageBytes);
     
     if (uploadError) {
       console.error('Storage upload error:', uploadError);
@@ -148,29 +125,21 @@ export async function POST(req: NextRequest) {
       
       // Load processor and model if not already loaded
       if (!processor) {
-        processor = await withTimeout(
-          AutoProcessor.from_pretrained(model_id, {
-            cache_dir: env.cacheDir,
-            local_files_only: false,
-            quantized: true
-          }),
-          20000, // 20 second timeout
-          "Model processor loading timed out"
-        );
+        processor = await AutoProcessor.from_pretrained(model_id, {
+          cache_dir: env.cacheDir,
+          local_files_only: false,
+          quantized: true
+        });
       }
       console.log("Processor loaded, initializing vision model");
       console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
       
       if (!vision_model) {
-        vision_model = await withTimeout(
-          CLIPVisionModelWithProjection.from_pretrained(model_id, {
-            cache_dir: env.cacheDir,
-            local_files_only: false,
-            quantized: true
-          }),
-          20000, // 20 second timeout
-          "Vision model loading timed out"
-        );
+        vision_model = await CLIPVisionModelWithProjection.from_pretrained(model_id, {
+          cache_dir: env.cacheDir,
+          local_files_only: false,
+          quantized: true
+        });
       }
       
       console.log("Vision model loaded, processing image");
@@ -195,27 +164,23 @@ export async function POST(req: NextRequest) {
       
       const imageVector = image_embeds.tolist()[0];
       
-      // Insert into Milvus synchronously with timeout
+      // Insert into Milvus synchronously
       console.log("Inserting into Milvus");
-      await withTimeout(
-        milvus.insert({
-          collection_name: COLLECTION_NAME,
-          fields_data: [{
-            [VECTOR_FIELD_NAME]: imageVector,
-            imageId: itemId,
-            url: imageUrl,
-            aiDescription: title,
-            photoDescription: description || "",
-            location: location,
-            submitter_email: session.user.email,
-            created_at: new Date().toISOString(),
-            blurHash: "",
-            ratio: 1.0, // Default aspect ratio
-          }],
-        }),
-        15000, // 15 second timeout
-        "Milvus insertion timed out"
-      );
+      await milvus.insert({
+        collection_name: COLLECTION_NAME,
+        fields_data: [{
+          [VECTOR_FIELD_NAME]: imageVector,
+          imageId: itemId,
+          url: imageUrl,
+          aiDescription: title,
+          photoDescription: description || "",
+          location: location,
+          submitter_email: session.user.email,
+          created_at: new Date().toISOString(),
+          blurHash: "",
+          ratio: 1.0, // Default aspect ratio
+        }],
+      });
       
       console.log("Milvus insert successful");
       console.log(`Total time: ${(Date.now() - startTime) / 1000}s`);
@@ -284,11 +249,11 @@ export async function POST(req: NextRequest) {
 
 export async function OPTIONS(req: NextRequest) {
   return new Response(null, {
-    status: 204,
+    status: 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-    }
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
   });
 }
