@@ -65,8 +65,8 @@ import {
           ssl: process.env.NODE_ENV === 'production', // Use SSL in production
           timeout: this._connectionTimeout, // Overall timeout
           channelOptions: {
-            "grpc.keepalive_time_ms": 20000, // Reduce from 40000
-            "grpc.keepalive_timeout_ms": 3000, // Reduce from 5000
+            "grpc.keepalive_time_ms": 40000, // Reduce from 40000
+            "grpc.keepalive_timeout_ms": 5000, // Reduce from 5000
             "grpc.max_reconnect_backoff_ms": 5000, // Add reconnection backoff
             "grpc.min_reconnect_backoff_ms": 1000, // Add minimum reconnection backoff
             "grpc.max_send_message_length": 4 * 1024 * 1024, // Limit message size
