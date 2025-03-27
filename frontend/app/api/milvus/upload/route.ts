@@ -6,6 +6,7 @@ import { milvus, COLLECTION_NAME, VECTOR_FIELD_NAME } from '@/app/utils/milvus';
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
+import { after } from 'next/server';
 
 // For embedding generation in server
 import { AutoProcessor, RawImage, CLIPVisionModelWithProjection, env } from "@xenova/transformers";
@@ -24,10 +25,10 @@ try {
   console.warn("Failed to create cache directory:", err);
 }
 
-// IMPORTANT: Use Node.js runtime, not Edge runtime
+// IMPORTANT: Use Node.js runtime with Fluid Compute
 export const runtime = "nodejs"; 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300; // 5 minutes for Fluid Compute
 
 // Smaller model with lower memory footprint
 const model_id = "Xenova/clip-vit-base-patch32";
@@ -36,11 +37,25 @@ const model_id = "Xenova/clip-vit-base-patch32";
 let processor: any = null;
 let vision_model: any = null;
 
+// Track processing status
+interface ProcessingStatus {
+  [key: string]: {
+    status: 'processing' | 'complete' | 'error';
+    message?: string;
+    timestamp: number;
+  }
+}
+
+// In-memory status tracking (will reset on deployment)
+// In production, use a persistent store like Redis or DynamoDB
+export const processingStatus: ProcessingStatus = {};
+
 export async function POST(req: NextRequest) {
   console.log("Upload API called - Method:", req.method);
   let fileName = "";
   let itemId = "";
   let imageUrl = "";
+  let imageVector: number[] = [];
   
   try {
     // Track start time for performance monitoring
@@ -83,6 +98,13 @@ export async function POST(req: NextRequest) {
     // 3. Generate a unique ID for the item
     itemId = uuidv4();
     
+    // Set initial processing status
+    processingStatus[itemId] = {
+      status: 'processing',
+      message: 'Starting upload process',
+      timestamp: Date.now()
+    };
+    
     // 4. Upload image to Supabase Storage
     const imageBuffer = await image.arrayBuffer();
     const imageBytes = new Uint8Array(imageBuffer);
@@ -97,6 +119,11 @@ export async function POST(req: NextRequest) {
     
     if (uploadError) {
       console.error('Storage upload error:', uploadError);
+      processingStatus[itemId] = {
+        status: 'error',
+        message: 'Failed to upload image to storage',
+        timestamp: Date.now()
+      };
       return new Response(JSON.stringify({ error: 'Failed to upload image: ' + uploadError.message }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
@@ -105,6 +132,13 @@ export async function POST(req: NextRequest) {
     
     console.log("File uploaded successfully to Supabase");
     console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
+    
+    // Update status
+    processingStatus[itemId] = {
+      status: 'processing',
+      message: 'Image uploaded, generating embedding',
+      timestamp: Date.now()
+    };
     
     // 5. Get the public URL for the uploaded image
     const { data: urlData } = supabase.storage
@@ -162,30 +196,78 @@ export async function POST(req: NextRequest) {
       console.log("Image embedding generated");
       console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
       
-      const imageVector = image_embeds.tolist()[0];
+      imageVector = image_embeds.tolist()[0];
       
-      // Insert into Milvus synchronously
-      console.log("Inserting into Milvus");
-      await milvus.insert({
-        collection_name: COLLECTION_NAME,
-        fields_data: [{
-          [VECTOR_FIELD_NAME]: imageVector,
-          imageId: itemId,
-          url: imageUrl,
-          aiDescription: title,
-          photoDescription: description || "",
-          location: location,
-          submitter_email: session.user.email,
-          created_at: new Date().toISOString(),
-          blurHash: "",
-          ratio: 1.0, // Default aspect ratio
-        }],
+      // Update status before background processing
+      processingStatus[itemId] = {
+        status: 'processing',
+        message: 'Embedding generated, inserting into database',
+        timestamp: Date.now()
+      };
+      
+      // Use the after function for background processing
+      after(async () => {
+        try {
+          console.log("Background processing started for item:", itemId);
+          
+          // Update status
+          processingStatus[itemId] = {
+            status: 'processing',
+            message: 'Inserting into vector database',
+            timestamp: Date.now()
+          };
+          
+          // Insert into Milvus
+          console.log("Inserting into Milvus...");
+          const insertResult = await milvus.insert({
+            collection_name: COLLECTION_NAME,
+            fields_data: [{
+              [VECTOR_FIELD_NAME]: imageVector,
+              imageId: itemId,
+              url: imageUrl,
+              aiDescription: title,
+              photoDescription: description || "",
+              location: location,
+              submitter_email: session.user.email,
+              created_at: new Date().toISOString(),
+              blurHash: "",
+              ratio: 1.0, // Default aspect ratio
+            }],
+          });
+          
+          console.log("Milvus insert result:", insertResult);
+          
+          // Update status to complete
+          processingStatus[itemId] = {
+            status: 'complete',
+            message: 'Successfully inserted into Milvus',
+            timestamp: Date.now()
+          };
+          
+          // Clean up status after some time (e.g., 1 hour)
+          setTimeout(() => {
+            if (processingStatus[itemId]) {
+              console.log("Cleaning up status for:", itemId);
+              delete processingStatus[itemId];
+            }
+          }, 60 * 60 * 1000); // 1 hour
+          
+        } catch (error) {
+          console.error("Background processing error:", error);
+          
+          // Update status to error
+          processingStatus[itemId] = {
+            status: 'error',
+            message: error instanceof Error ? error.message : String(error),
+            timestamp: Date.now()
+          };
+        }
       });
       
-      console.log("Milvus insert successful");
-      console.log(`Total time: ${(Date.now() - startTime) / 1000}s`);
+      console.log(`Returning response while Milvus insertion continues in background`);
+      console.log(`Total time before response: ${(Date.now() - startTime) / 1000}s`);
       
-      // Return success response
+      // Return success response without waiting for Milvus insertion
       return new Response(JSON.stringify({
         success: true,
         item: {
@@ -201,13 +283,21 @@ export async function POST(req: NextRequest) {
           profiles: {
             email: session.user.email
           }
-        }
+        },
+        processingStatus: 'started'
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     } catch (processingError) {
-      console.error("Error in image processing or Milvus insertion:", processingError);
+      console.error("Error in image processing:", processingError);
+      
+      // Update status on error
+      processingStatus[itemId] = {
+        status: 'error',
+        message: `Image processing failed: ${processingError instanceof Error ? processingError.message : String(processingError)}`,
+        timestamp: Date.now()
+      };
       
       // Cleanup
       try {
@@ -218,7 +308,7 @@ export async function POST(req: NextRequest) {
       }
       
       return new Response(JSON.stringify({ 
-        error: 'Failed to process image or save to database: ' + 
+        error: 'Failed to process image: ' + 
           (processingError instanceof Error ? processingError.message : String(processingError)) 
       }), {
         status: 500,
