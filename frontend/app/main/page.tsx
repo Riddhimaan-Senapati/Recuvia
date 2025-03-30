@@ -65,118 +65,14 @@ export default function MainPage() {
   const [searchProgress, setSearchProgress] = useState<'idle' | 'searching' | 'complete' | 'error'>('idle');
   const [searchStatusMessage, setSearchStatusMessage] = useState<string>('');
   
-  // New states for Milvus upload status
-  const [uploadedItemId, setUploadedItemId] = useState<string | null>(null);
+  // Simplified upload status
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'complete' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState<string>('');
-  
-  // State for tracking background processing
-  const [processingItems, setProcessingItems] = useState<Record<string, {
-    status: string;
-    message: string;
-    lastChecked: number;
-    retryCount: number;
-  }>>({});
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const searchFileInputRef = useRef<HTMLInputElement | null>(null);
   const supabase = createClientComponentClient();
   const router = useRouter();
-  
-  // Function to check if an image has been indexed in Milvus
-  const checkMilvusStatus = async (imageId: string) => {
-    try {
-      const response = await fetch(`/api/milvus/status?imageId=${imageId}`);
-      const data = await response.json();
-      
-      // Update the processing items state
-      setProcessingItems(prev => ({
-        ...prev,
-        [imageId]: {
-          status: data.status || 'unknown',
-          message: data.message || 'Checking status...',
-          lastChecked: Date.now(),
-          retryCount: (prev[imageId]?.retryCount || 0) + 1
-        }
-      }));
-      
-      if (data.exists) {
-        console.log('Image successfully indexed in Milvus!');
-        setUploadStatus('complete');
-        setStatusMessage('Item fully processed and searchable');
-        
-        // Remove from processing items after a delay
-        setTimeout(() => {
-          setProcessingItems(prev => {
-            const newState = { ...prev };
-            delete newState[imageId];
-            return newState;
-          });
-        }, 5000);
-        
-        return true;
-      } else if (data.status === 'processing') {
-        console.log(`Image processing: ${data.message}`);
-        setStatusMessage(data.message || 'Item uploaded, processing in database...');
-        return false;
-      } else if (data.status === 'complete') {
-        console.log('Processing complete, waiting for indexing...');
-        setStatusMessage('Processing complete, waiting for indexing...');
-        return false;
-      } else if (data.status === 'error') {
-        console.error(`Processing error: ${data.message}`);
-        setUploadStatus('error');
-        setStatusMessage(`Error: ${data.message || 'Unknown error during processing'}`);
-        
-        // Remove from processing items after a delay
-        setTimeout(() => {
-          setProcessingItems(prev => {
-            const newState = { ...prev };
-            delete newState[imageId];
-            return newState;
-          });
-        }, 10000);
-        
-        return false;
-      } else {
-        console.log('Image still being processed...');
-        setStatusMessage('Item uploaded, processing in database...');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error checking Milvus status:', error);
-      return false;
-    }
-  };
-  
-  // Polling mechanism for background tasks
-  useEffect(() => {
-    // Skip if no processing items
-    if (Object.keys(processingItems).length === 0) return;
-    
-    const interval = setInterval(() => {
-      Object.entries(processingItems).forEach(([imageId, info]) => {
-        // Skip if checked recently (within 2 seconds)
-        if (Date.now() - info.lastChecked < 2000) return;
-        
-        // Skip if retried too many times (max 30 retries = ~1 minute)
-        if (info.retryCount > 30) {
-          console.log(`Stopped polling for ${imageId} after too many retries`);
-          setProcessingItems(prev => {
-            const newState = { ...prev };
-            delete newState[imageId];
-            return newState;
-          });
-          return;
-        }
-        
-        // Check status
-        checkMilvusStatus(imageId);
-      });
-    }, 2000); // Check every 2 seconds
-    
-    return () => clearInterval(interval);
-  }, [processingItems]);
   
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -214,9 +110,8 @@ export default function MainPage() {
       return;
     }
     
-    setUploadedItemId(null);
     setUploadStatus('uploading');
-    setStatusMessage('Uploading item...');
+    setStatusMessage('Uploading your found item...');
     setUploading(true);
     
     try {
@@ -248,28 +143,21 @@ export default function MainPage() {
         throw new Error(result?.error || `Upload failed with status: ${response.status}`);
       }
       
-      if (result?.item?.id) {
-        setUploadedItemId(result.item.id);
-        setUploadStatus('complete');
-        setStatusMessage('Item uploaded successfully!');
-        
-        // Add to processing items
-        setProcessingItems(prev => ({
-          ...prev,
-          [result.item.id]: {
-            status: 'unknown',
-            message: 'Checking status...',
-            lastChecked: Date.now(),
-            retryCount: 0
-          }
-        }));
-      }
+      setUploadStatus('complete');
+      setStatusMessage('Item uploaded successfully!');
       
+      // Reset form after successful upload
       setTitle('');
       setDescription('');
       setLocation('');
       setImageFile(null);
       setImagePreview(null);
+      
+      // Reset upload status after a delay
+      setTimeout(() => {
+        setUploadStatus('idle');
+        setStatusMessage('');
+      }, 5000);
       
     } catch (error) {
       console.error('Error uploading item:', error);
@@ -745,7 +633,7 @@ export default function MainPage() {
                     <div>
                       <label className="block mb-1">Image *</label>
                       <div 
-                        className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer"
+                        className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
                         onClick={() => fileInputRef.current?.click()}
                       >
                         {imagePreview ? (
@@ -756,11 +644,30 @@ export default function MainPage() {
                               fill
                               className="object-contain"
                             />
+                            <div className="absolute bottom-2 right-2">
+                              <Button 
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                className="bg-white/80 hover:bg-white text-gray-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setImageFile(null);
+                                  setImagePreview(null);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Remove
+                              </Button>
+                            </div>
                           </div>
                         ) : (
-                          <div className="py-4">
+                          <div className="py-8">
                             <Upload className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-                            <p>Click to upload an image (required)</p>
+                            <p className="text-gray-500 dark:text-gray-400">Click to upload an image (required)</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                              Upload a clear photo to help others identify their lost item
+                            </p>
                           </div>
                         )}
                         <input
@@ -808,79 +715,18 @@ export default function MainPage() {
                           <div className="flex-1">
                             <p className="font-medium">
                               {uploadStatus === 'error' ? 'Upload Error' :
-                               uploadStatus === 'complete' ? 'Success!' :
+                               uploadStatus === 'complete' ? 'Upload Successful!' :
                                'Uploading...'}
                             </p>
                             <p className="text-sm">{statusMessage}</p>
-                            
-                            {/* Progress bar for processing status */}
-                            {uploadStatus === 'complete' && statusMessage.includes('processing') && (
-                              <div className="mt-2">
-                                <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 overflow-hidden">
-                                  <div 
-                                    className="bg-blue-600 h-2.5 rounded-full" 
-                                    style={{ width: '60%' }}
-                                  ></div>
-                                </div>
-                                <p className="text-xs mt-1 text-gray-500">
-                                  Background processing in progress...
-                                </p>
-                              </div>
-                            )}
                           </div>
                         </div>
                         
-                        {uploadStatus === 'complete' && statusMessage.includes('fully processed') && (
+                        {uploadStatus === 'complete' && (
                           <div className="mt-2 text-sm">
                             <p>Your item has been successfully uploaded and is now searchable.</p>
                           </div>
                         )}
-                      </div>
-                    )}
-                    
-                    {Object.keys(processingItems).length > 0 && (
-                      <div className="mt-4 border border-gray-200 rounded-md overflow-hidden">
-                        <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                          <h3 className="text-sm font-medium text-gray-700">Background Processing</h3>
-                        </div>
-                        <div className="divide-y divide-gray-200">
-                          {Object.entries(processingItems).map(([imageId, info]) => (
-                            <div key={imageId} className="px-4 py-3">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center">
-                                  {info.status === 'processing' && (
-                                    <div className="mr-2 h-4 w-4 rounded-full bg-blue-500 animate-pulse"></div>
-                                  )}
-                                  {info.status === 'complete' && (
-                                    <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                                  )}
-                                  {info.status === 'error' && (
-                                    <div className="mr-2 text-red-500">⚠️</div>
-                                  )}
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-700">
-                                      Item {imageId.substring(0, 8)}...
-                                    </p>
-                                    <p className="text-xs text-gray-500">{info.message}</p>
-                                  </div>
-                                </div>
-                                {info.status === 'processing' && (
-                                  <div className="ml-4 w-24">
-                                    <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
-                                      <div 
-                                        className="bg-blue-600 h-1.5 rounded-full" 
-                                        style={{ 
-                                          width: `${Math.min(100, info.retryCount * 3.3)}%`,
-                                          transition: 'width 0.5s ease-in-out'
-                                        }}
-                                      ></div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
                       </div>
                     )}
                   </form>

@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
       };
       
       // Use the after function for background processing
-      after(async () => {
+      
         try {
           console.log("Background processing started for image:", itemId);
           
@@ -304,10 +304,6 @@ export async function POST(req: NextRequest) {
             timestamp: Date.now()
           };
         }
-      });
-      
-      console.log(`Returning response while Milvus insertion continues in background`);
-      console.log(`Total time before response: ${(Date.now() - startTime) / 1000}s`);
       
       // Return success response without waiting for Milvus insertion
       return new Response(JSON.stringify({
