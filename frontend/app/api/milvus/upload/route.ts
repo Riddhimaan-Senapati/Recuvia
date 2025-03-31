@@ -29,12 +29,13 @@ try {
 // IMPORTANT: Use Node.js runtime with Fluid Compute
 export const runtime = "nodejs"; 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 60; // 60 seconds max duration
+export const preferredRegion = "auto"; // Optimize for user's region
 
 // Smaller model with lower memory footprint
 const model_id = "Xenova/clip-vit-base-patch32";
 
-// Lazy-loaded processor and model
+// Lazy-loaded processor and model (move outside function to maintain between requests)
 let _processor: any = null;
 let _model: any = null;
 
@@ -56,33 +57,30 @@ async function getModel() {
   return _model;
 }
 
+// Pre-initialize the models (this will happen once when the function is first deployed)
+if (process.env.VERCEL) {
+  Promise.all([getProcessor(), getModel()]).catch(console.error);
+}
+
 export async function POST(req: NextRequest) {
-  console.log("Upload API called - Method:", req.method);
+  console.log("Upload API called");
   let fileName = "";
   let itemId = "";
   let imageUrl = "";
-  let imageVector: number[] = [];
   
   try {
-    // Track start time for performance monitoring
     const startTime = Date.now();
-    
-    // Get cookie store
     const cookieStore = cookies();
-    
-    // 1. Get authenticated user
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
-      console.log("Unauthorized - no session");
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
     }
-    
-    // 2. Parse the form data
+
     const formData = await req.formData();
     const title = formData.get('title') as string;
     const description = formData.get('description') as string || '';
@@ -90,276 +88,122 @@ export async function POST(req: NextRequest) {
     const image = formData.get('image') as File;
     
     if (!title || !location || !image) {
-      console.log("Missing required fields");
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
-    
-    console.log("Processing upload for user:", session.user.email);
-    console.log("Image size:", image.size, "bytes");
-    console.log("Image type:", image.type);
-    
-    // 3. Generate a unique ID for the item
+
     itemId = uuidv4();
-    
-    // Set initial processing status
     processingStatus[itemId] = {
       status: 'processing',
       message: 'Starting upload process',
       timestamp: Date.now()
     };
-    
-    // 4. Upload image to Supabase Storage
+
+    // 1. Upload image to Supabase Storage
     const imageBuffer = await image.arrayBuffer();
-    const imageBytes = new Uint8Array(imageBuffer);
-    
     fileName = `${itemId}-${image.name.replace(/\s/g, '_')}`;
-    console.log("Uploading to Supabase Storage:", fileName);
     
-    // Upload to Supabase
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('item-images')
-      .upload(fileName, imageBytes);
+      .upload(fileName, new Uint8Array(imageBuffer));
     
     if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      processingStatus[itemId] = {
-        status: 'error',
-        message: 'Failed to upload image to storage',
-        timestamp: Date.now()
-      };
-      return new Response(JSON.stringify({ error: 'Failed to upload image: ' + uploadError.message }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      throw new Error('Storage upload error: ' + uploadError.message);
     }
-    
-    console.log("File uploaded successfully to Supabase");
-    console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
-    
-    // Update status
-    processingStatus[itemId] = {
-      status: 'processing',
-      message: 'Image uploaded, generating embedding',
-      timestamp: Date.now()
-    };
-    
-    // 5. Get the public URL for the uploaded image
+
     const { data: urlData } = supabase.storage
       .from('item-images')
       .getPublicUrl(fileName);
     
     imageUrl = urlData?.publicUrl || "";
-    console.log("Image public URL:", imageUrl);
-    
-    // 6. Generate image embedding
-    try {
-      console.log("Initializing image processor with cache dir:", env.cacheDir);
-      
-      // Use a more flexible cache strategy
-      env.cacheDir = process.env.VERCEL_TMP_DIR || path.join(os.tmpdir(), '.cache', 'transformers');
-      env.allowRemoteModels = true;
-      process.env.TRANSFORMERS_OFFLINE = '0';
-      
-      // Load processor and model if not already loaded
-      const processor = await getProcessor();
-      console.log("Processor loaded, initializing vision model");
-      console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
-      
-      const vision_model = await getModel();
-      
-      console.log("Vision model loaded, processing image");
-      console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
 
-      // Create a blob from the image buffer
-      const blob = new Blob([imageBuffer], { type: image.type || 'image/jpeg' });
-      
-      // Process the image directly without resizing
-      const image_obj = await RawImage.fromBlob(blob);
-      console.log("Image obj created");
-      console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
-         
-      // Process the image with the model
-      const image_inputs = await processor(image_obj);
-      console.log("Image processed");
-      
-      // Generate the embedding
-      const { image_embeds } = await vision_model(image_inputs);
-      console.log("Image embedding generated");
-      console.log(`Time elapsed: ${(Date.now() - startTime) / 1000}s`);
-      
-      imageVector = image_embeds.tolist()[0];
-      
-      // Update status before background processing
-      processingStatus[itemId] = {
-        status: 'processing',
-        message: 'Embedding generated, inserting into database',
-        timestamp: Date.now()
-      };
-      
-      // Use the after function for background processing
-      
-        try {
-          console.log("Background processing started for image:", itemId);
-          
-          // Update status
-          processingStatus[itemId] = {
-            status: 'processing',
-            message: 'Preparing to insert into vector database',
-            timestamp: Date.now()
-          };
-          
-          // Insert into Milvus with timeout protection
-          console.log("Inserting into Milvus...");
-          
-          // Set a timeout for the Milvus operation
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => {
-              reject(new Error('Milvus insert operation timed out after 30 seconds'));
-            }, 30000); // 30 second timeout
-          });
-          
-          // Attempt the Milvus insert with timeout protection
-          try {
-            const insertResult = await Promise.race([
-              milvus.insert({
-                collection_name: COLLECTION_NAME,
-                fields_data: [{
-                  [VECTOR_FIELD_NAME]: imageVector,
-                  imageId: itemId,
-                  url: imageUrl,
-                  aiDescription: title,
-                  photoDescription: description || "",
-                  location: location,
-                  submitter_email: session.user.email,
-                  created_at: new Date().toISOString(),
-                  blurHash: "",
-                  ratio: 1.0, // Default aspect ratio
-                }],
-              }),
-              timeoutPromise
-            ]);
-            
-            console.log("Milvus insert result:", insertResult);
-            
-            // Update status to complete
-            processingStatus[itemId] = {
-              status: 'complete',
-              message: 'Successfully inserted into Milvus',
-              timestamp: Date.now()
-            };
-          } catch (insertError) {
-            console.error("Milvus insert error:", insertError);
-            
-            // Try again with a simpler approach if the first attempt failed
-            try {
-              console.log("Retrying Milvus insert with simplified approach...");
-              processingStatus[itemId] = {
-                status: 'processing',
-                message: 'Retrying database insertion',
-                timestamp: Date.now()
-              };
-              
-              const insertResult = await milvus.insert({
-                collection_name: COLLECTION_NAME,
-                fields_data: [{
-                  [VECTOR_FIELD_NAME]: imageVector,
-                  imageId: itemId,
-                  url: imageUrl,
-                  created_at: new Date().toISOString(),
-                }],
-              });
-              
-              console.log("Simplified Milvus insert result:", insertResult);
-              
-              // Update status to complete
-              processingStatus[itemId] = {
-                status: 'complete',
-                message: 'Successfully inserted into Milvus (simplified)',
-                timestamp: Date.now()
-              };
-            } catch (retryError) {
-              console.error("Retry Milvus insert failed:", retryError);
-              throw retryError; // Re-throw to be caught by outer catch
-            }
-          }
-          
-          // Clean up status after some time (e.g., 1 hour)
-          setTimeout(() => {
-            if (processingStatus[itemId]) {
-              console.log("Cleaning up status for:", itemId);
-              delete processingStatus[itemId];
-            }
-          }, 60 * 60 * 1000); // 1 hour
-          
-        } catch (error) {
-          console.error("Background processing error:", error);
-          
-          // Update status to error
-          processingStatus[itemId] = {
-            status: 'error',
-            message: error instanceof Error ? error.message : String(error),
-            timestamp: Date.now()
-          };
-        }
-      
-      // Return success response without waiting for Milvus insertion
-      return new Response(JSON.stringify({
-        success: true,
-        item: {
-          id: itemId,
-          title,
-          description,
-          location,
-          submitter_email: session.user.email,
-          created_at: new Date().toISOString(),
-          item_images: [{
-            image_url: imageUrl
+    // 2. Generate embedding with optimized processing
+    const processor = await getProcessor();
+    const vision_model = await getModel();
+    
+    const blob = new Blob([imageBuffer], { type: image.type || 'image/jpeg' });
+    const image_obj = await RawImage.fromBlob(blob);
+    const image_inputs = await processor(image_obj);
+    const { image_embeds } = await vision_model(image_inputs);
+    const imageVector = image_embeds.tolist()[0];
+
+    // 3. Insert into Milvus with retry logic
+    const maxRetries = 3;
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await milvus.insert({
+          collection_name: COLLECTION_NAME,
+          fields_data: [{
+            [VECTOR_FIELD_NAME]: imageVector,
+            imageId: itemId,
+            url: imageUrl,
+            aiDescription: title,
+            photoDescription: description || "",
+            location: location,
+            submitter_email: session.user.email,
+            created_at: new Date().toISOString(),
+            blurHash: "",
+            ratio: 1.0,
           }],
-          profiles: {
-            email: session.user.email
+        });
+        
+        // If successful, break out of retry loop
+        processingStatus[itemId] = {
+          status: 'complete',
+          message: 'Successfully processed and stored',
+          timestamp: Date.now()
+        };
+        
+        return new Response(JSON.stringify({
+          success: true,
+          itemId,
+          imageUrl,
+          processingTime: Date.now() - startTime
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+      } catch (error) {
+        console.error(`Attempt ${attempt} failed:`, error);
+        lastError = error;
+        
+        if (attempt === maxRetries) {
+          if (error instanceof Error) {
+            throw new Error(`Failed after ${maxRetries} attempts: ${error.message}`);
+          } else {
+            throw new Error(`Failed after ${maxRetries} attempts: ${String(error)}`);
           }
-        },
-        processingStatus: 'started'
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    } catch (processingError) {
-      console.error("Error in image processing:", processingError);
-      
-      // Update status on error
+        }
+        
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+      }
+    }
+    
+    throw lastError;
+
+  } catch (error) {
+    console.error("Upload error:", error);
+    
+    // Update status
+    if (itemId) {
       processingStatus[itemId] = {
         status: 'error',
-        message: `Image processing failed: ${processingError instanceof Error ? processingError.message : String(processingError)}`,
+        message: error instanceof Error ? error.message : String(error) || 'Unknown error occurred',
         timestamp: Date.now()
       };
-      
-      // Cleanup
-      try {
-        console.log("Cleaning up Supabase Storage file due to error");
-        await supabase.storage.from('item-images').remove([fileName]);
-      } catch (cleanupError) {
-        console.error("Failed to clean up file:", cleanupError);
-      }
-      
-      return new Response(JSON.stringify({ 
-        error: 'Failed to process image: ' + 
-          (processingError instanceof Error ? processingError.message : String(processingError)) 
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
     }
-  } catch (error) {
-    console.error("Unhandled error in upload API:", error);
     
-    // Cleanup if filename was set
+    // Cleanup on error
     if (fileName) {
       try {
-        const supabase = createRouteHandlerClient({ cookies });
+        const cookieStore = cookies();
+        const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
         await supabase.storage.from('item-images').remove([fileName]);
       } catch (cleanupError) {
         console.error("Failed to clean up file:", cleanupError);
@@ -367,7 +211,7 @@ export async function POST(req: NextRequest) {
     }
     
     return new Response(JSON.stringify({ 
-      error: 'Server error: ' + (error instanceof Error ? error.message : String(error)) 
+      error: 'Upload failed: ' + (error instanceof Error ? error.message : String(error)) 
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
