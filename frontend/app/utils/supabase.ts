@@ -30,7 +30,7 @@ export const supabase = (() => {
 export const VECTOR_DIMENSION = 512;
 export const COLLECTION_NAME = 'items';
 export const VECTOR_FIELD_NAME = 'embedding';
-export const SIMILARITY_THRESHOLD = 0.7;
+export const SIMILARITY_THRESHOLD = 0.1;
 export const MAX_RESULTS = 20;
 
 // Processing status in-memory store
