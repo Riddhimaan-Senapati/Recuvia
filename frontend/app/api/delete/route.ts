@@ -1,13 +1,13 @@
+// frontend/app/api/milvus/delete/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { milvus, COLLECTION_NAME } from '@/app/utils/milvus';
+import { deleteItemById } from '@/app/utils/supabase';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    
     // 1. Get authenticated user
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session } } = await supabase.auth.getSession();
@@ -27,22 +27,20 @@ export async function POST(req: NextRequest) {
     }
     
     // 3. Check if the user is authorized to delete this item
-    // First, query Milvus to get the item details
-    const queryExpr = `imageId == "${itemId}"`;
-    const queryResult = await milvus.query({
-      collection_name: COLLECTION_NAME,
-      filter: queryExpr,
-      output_fields: ['submitter_email'],
-    });
+    // First, query Supabase to get the item details
+    const { data: itemData, error: queryError } = await supabase
+      .from('items')
+      .select('submitter_email')
+      .eq('id', itemId)
+      .single();
     
-    if (!queryResult || !queryResult.data || queryResult.data.length === 0) {
+    if (queryError || !itemData) {
       return NextResponse.json(
         { error: 'Item not found' },
         { status: 404 }
       );
     }
     
-    const itemData = queryResult.data[0];
     const itemOwnerEmail = itemData.submitter_email;
     const userEmail = session.user.email;
     
@@ -57,19 +55,8 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // 4. Delete from Milvus
-    const deleteExpr = `imageId == "${itemId}"`;
-    const deleteResult = await milvus.deleteEntities({
-      collection_name: COLLECTION_NAME,
-      filter: deleteExpr,
-    });
-    
-    if (!deleteResult || deleteResult.status?.error_code !== 'Success') {
-      return NextResponse.json(
-        { error: 'Failed to delete from Milvus' },
-        { status: 500 }
-      );
-    }
+    // 4. Delete from Supabase
+    await deleteItemById(itemId);
     
     // 5. Delete from Supabase Storage if fileName is provided
     if (fileName) {
@@ -79,7 +66,7 @@ export async function POST(req: NextRequest) {
       
       if (storageError) {
         console.error('Storage delete error:', storageError);
-        // We'll continue even if storage delete fails, as the Milvus delete succeeded
+        // We'll continue even if storage delete fails, as the database delete succeeded
       }
     }
     

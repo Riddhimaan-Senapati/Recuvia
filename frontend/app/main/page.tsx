@@ -121,9 +121,10 @@ export default function MainPage() {
       formData.append('location', location);
       formData.append('image', imageFile);
       
-      const response = await fetch('/api/milvus/upload', {
+      const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
       
       const text = await response.text();
@@ -179,7 +180,7 @@ export default function MainPage() {
     setSearchStatusMessage('Searching for items...');
     
     try {
-      const response = await fetch('/api/milvus/search/text', {
+      const response = await fetch('/api/search/text', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -218,7 +219,7 @@ export default function MainPage() {
       const formData = new FormData();
       formData.append('image', searchImage);
       
-      const response = await fetch('/api/milvus/search/image', {
+      const response = await fetch('/api/search/image', {
         method: 'POST',
         body: formData,
       });
@@ -265,7 +266,7 @@ export default function MainPage() {
       
       console.log("Sending search request with image from an existing item...");
       
-      const response = await fetch('/api/milvus/search/image', {
+      const response = await fetch('/api/search/image', {
         method: 'POST',
         body: formData,
       });
@@ -331,7 +332,7 @@ export default function MainPage() {
       const url = item.item_images[0].image_url;
       const fileName = url.split('/').pop();
       
-      const response = await fetch('/api/milvus/delete', {
+      const response = await fetch('/api/delete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
