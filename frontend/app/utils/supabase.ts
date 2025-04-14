@@ -60,8 +60,7 @@ export async function searchByVector(embedding: number[], limit: number = MAX_RE
   }
 }
 
-// **** MODIFIED FUNCTION DEFINITION ****
-// Insert Item function - NOW accepts the request-scoped client as the second argument
+// Insert Item function
 export async function insertItemWithEmbedding(
     item: {
         id: string;
@@ -72,7 +71,6 @@ export async function insertItemWithEmbedding(
         submitter_id: string; // Make sure this is provided correctly from a validated session
         embedding: number[];
     },
-    // **** ACCEPT THE SECOND ARGUMENT ****
     supabaseClient: SupabaseClient // Accept the specific Supabase client instance
 ) {
     try {
@@ -102,25 +100,30 @@ export async function insertItemWithEmbedding(
 
 
 // Delete Item function (uses the global singleton client)
-// CONSIDER MODIFYING this similarly if delete RLS depends strictly on auth.uid()
-// You would need to pass the request-scoped client from the /api/delete route handler
-export async function deleteItemById(itemId: string) {
+export async function deleteItemById(
+  itemId: string,
+  supabaseClient: SupabaseClient // Accept the specific Supabase client instance
+  ) {
   try {
-    // Using the global 'supabase' client instance - OK if RLS is simple
-    const { error } = await supabase
-      .from(COLLECTION_NAME)
-      .delete()
-      .eq('id', itemId);
+      // **** Use the PASSED-IN supabaseClient, NOT the global 'supabase' ****
+      // This client has the user's auth context, necessary for RLS check on delete
+      const { error } = await supabaseClient // Use the passed client here
+          .from(COLLECTION_NAME)
+          .delete()
+          .eq('id', itemId); // Match the item ID to delete
 
-    if (error) {
-        console.error(`Error deleting item ${itemId}:`, error);
-        throw error; // Throw the Supabase error directly
-    }
-    console.log(`Successfully deleted item ${itemId}`);
-    return true; // Indicate success
+      if (error) {
+          console.error(`Error deleting item ${itemId} using provided client:`, error);
+          // Throw the original Supabase error for more details upstream
+          // You might want to wrap it or just throw it directly
+          throw error; // Throw the Supabase error object itself
+      }
+      console.log(`Successfully deleted item ${itemId} using request-scoped client.`);
+      return true; // Indicate success
   } catch (error) {
-    // Catch potential network or other errors
-    console.error(`Error during deletion process for item ${itemId}:`, error);
-    throw error; // Re-throw to be handled by the caller
+      // Catch potential network or other errors during the try block
+      console.error(`Error during deletion process for item ${itemId}:`, error);
+      // Ensure the error is propagated
+      throw error;
   }
 }

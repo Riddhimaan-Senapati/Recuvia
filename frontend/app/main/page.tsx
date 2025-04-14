@@ -1,7 +1,7 @@
 // app/page.tsx
 'use client';
 
-import { useState, useEffect, useRef, ChangeEvent, FormEvent, KeyboardEvent } from 'react';
+import { useState, useRef, ChangeEvent, FormEvent, KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,19 +34,17 @@ interface Item {
   score?: number;
 }
 
-// Add type definition for Auth context
 interface AuthContextType {
   user: any; 
   loading: boolean;
-  signOut: () => void; // Explicitly define signOut as a function that returns void
+  signOut: () => void;
 }
 
 export default function MainPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<string>('lost'); // Set lost as default tab
+  const [activeTab, setActiveTab] = useState<string>('lost');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  // Add type casting for useAuth to fix the signOut error
   const { user, loading: authLoading, signOut } = useAuth() as AuthContextType;
   
   // Upload states
@@ -61,11 +59,8 @@ export default function MainPage() {
   const [searchLoading, setSearchLoading] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
   
-  // New states for search progress indication
   const [searchProgress, setSearchProgress] = useState<'idle' | 'searching' | 'complete' | 'error'>('idle');
   const [searchStatusMessage, setSearchStatusMessage] = useState<string>('');
-  
-  // Simplified upload status
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'complete' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState<string>('');
 
@@ -77,7 +72,6 @@ export default function MainPage() {
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    
     const file = files[0];
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
@@ -86,49 +80,50 @@ export default function MainPage() {
   const handleSearchImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    
     const file = files[0];
     setSearchImage(file);
     setSearchImagePreview(URL.createObjectURL(file));
   };
+
+  // FIX: Reset file input value after removing image
+  const handleRemoveSearchImage = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSearchImage(null);
+    setSearchImagePreview(null);
+    if (searchFileInputRef.current) {
+      searchFileInputRef.current.value = "";
+    }
+  };
   
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
     if (!imageFile) {
       alert('Please select an image');
       return;
     }
-    
     if (!title.trim()) {
       alert('Please enter a title');
       return;
     }
-    
     if (!location.trim()) {
       alert('Please enter a location');
       return;
     }
-    
     setUploadStatus('uploading');
     setStatusMessage('Uploading your found item...');
     setUploading(true);
-    
     try {
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', description || '');
       formData.append('location', location);
       formData.append('image', imageFile);
-      
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
         credentials: 'include',
       });
-      
       const text = await response.text();
-      
       let result;
       if (text && text.trim()) {
         try {
@@ -139,27 +134,20 @@ export default function MainPage() {
       } else {
         throw new Error(`Server returned empty response with status: ${response.status}`);
       }
-      
       if (!response.ok) {
         throw new Error(result?.error || `Upload failed with status: ${response.status}`);
       }
-      
       setUploadStatus('complete');
       setStatusMessage('Item uploaded successfully!');
-      
-      // Reset form after successful upload
       setTitle('');
       setDescription('');
       setLocation('');
       setImageFile(null);
       setImagePreview(null);
-      
-      // Reset upload status after a delay
       setTimeout(() => {
         setUploadStatus('idle');
         setStatusMessage('');
       }, 5000);
-      
     } catch (error) {
       console.error('Error uploading item:', error);
       setUploadStatus('error');
@@ -174,11 +162,9 @@ export default function MainPage() {
       setItems([]);
       return;
     }
-    
     setLoading(true);
     setSearchProgress('searching');
     setSearchStatusMessage('Searching for items...');
-    
     try {
       const response = await fetch('/api/search/text', {
         method: 'POST',
@@ -189,11 +175,8 @@ export default function MainPage() {
           query: searchQuery,
         }),
       });
-      
       const data = await response.json();
-      
       if (!response.ok) throw new Error(data.error || 'Search failed');
-      
       setItems(data.items || []);
       setSearchProgress('complete');
       setSearchStatusMessage(`Found ${data.items?.length || 0} items`);
@@ -209,25 +192,19 @@ export default function MainPage() {
   
   const handleImageSearch = async () => {
     if (!searchImage) return;
-    
     setSearchLoading(true);
     setLoading(true);
     setSearchProgress('searching');
     setSearchStatusMessage('Processing image search...');
-    
     try {
       const formData = new FormData();
       formData.append('image', searchImage);
-      
       const response = await fetch('/api/search/image', {
         method: 'POST',
         body: formData,
       });
-      
       const data = await response.json();
-      
       if (!response.ok) throw new Error(data.error || 'Search failed');
-      
       setItems(data.items || []);
       setSearchProgress('complete');
       setSearchStatusMessage(`Found ${data.items?.length || 0} items`);
@@ -246,59 +223,41 @@ export default function MainPage() {
     setLoading(true);
     setSearchProgress('searching');
     setSearchStatusMessage(`Finding items similar to "${title}"...`);
-    
     try {
       const imageResponse = await fetch(imageUrl);
       if (!imageResponse.ok) {
         throw new Error(`Failed to fetch image: ${imageResponse.status}`);
       }
-      
       const imageBlob = await imageResponse.blob();
-      
       const fileName = `search-${Date.now()}.jpg`;
       const file = new File([imageBlob], fileName, { type: 'image/jpeg' });
-      
       setSearchImage(file);
       setSearchImagePreview(imageUrl);
-      
       const formData = new FormData();
       formData.append('image', file);
-      
-      console.log("Sending search request with image from an existing item...");
-      
       const response = await fetch('/api/search/image', {
         method: 'POST',
         body: formData,
       });
-      
       const text = await response.text();
-      
-      console.log(`Response status: ${response.status}`);
-      console.log(`Response text: ${text}`);
-      
       if (!response.ok) {
         throw new Error(`Search API error: ${response.status} - ${text}`);
       }
-      
       if (!text) {
-        console.warn("Received empty response");
         setItems([]);
         setSearchProgress('error');
         setSearchStatusMessage('Error: Empty response from server');
         return;
       }
-      
       let data;
       try {
         data = JSON.parse(text);
       } catch (e) {
         throw new Error(`Failed to parse response as JSON: ${text}`);
       }
-      
       setItems(data.items || []);
       setSearchProgress('complete');
       setSearchStatusMessage(`Found ${data.items?.length || 0} similar items`);
-      
       if (activeTab !== 'lost') {
         setActiveTab('lost');
       }
@@ -325,13 +284,10 @@ export default function MainPage() {
     if (!confirm('Are you sure you want to delete this item?')) {
       return;
     }
-    
     setDeleting(true);
-    
     try {
       const url = item.item_images[0].image_url;
       const fileName = url.split('/').pop();
-      
       const response = await fetch('/api/delete', {
         method: 'POST',
         headers: {
@@ -342,15 +298,11 @@ export default function MainPage() {
           fileName: fileName,
         }),
       });
-      
       const result = await response.json();
-      
       if (!response.ok) {
         throw new Error(result.error || 'Failed to delete item');
       }
-      
       setItems(items.filter(i => i.id !== item.id));
-      
       alert('Item deleted successfully!');
     } catch (error) {
       console.error('Error deleting item:', error);
@@ -457,26 +409,42 @@ export default function MainPage() {
                   </Button>
                 </div>
                 
+                {/* --- IMAGE SEARCH UPLOAD WITH DELETE OPTION --- */}
                 <div className="flex gap-2">
                   <div 
                     className="border rounded-md flex-1 flex items-center px-3 cursor-pointer"
                     onClick={() => searchFileInputRef.current?.click()}
                   >
                     {searchImagePreview ? (
-                      <div className="relative h-10 w-10 mr-2">
-                        <Image
-                          src={searchImagePreview}
-                          alt="Search"
-                          fill
-                          className="object-cover rounded"
-                        />
-                      </div>
+                      <>
+                        <div className="relative h-10 w-10 mr-2">
+                          <Image
+                            src={searchImagePreview}
+                            alt="Search"
+                            fill
+                            className="object-cover rounded"
+                          />
+                        </div>
+                        <span className="text-gray-500 mr-2">Image selected</span>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="text-red-500 hover:text-red-700 p-1 h-auto"
+                          aria-label="Remove image"
+                          onClick={handleRemoveSearchImage}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
                     ) : (
-                      <ImageIcon className="mr-2 h-4 w-4 text-gray-400" />
+                      <>
+                        <ImageIcon className="mr-2 h-4 w-4 text-gray-400" />
+                        <span className="text-gray-500">
+                          Upload image to search
+                        </span>
+                      </>
                     )}
-                    <span className="text-gray-500">
-                      {searchImagePreview ? 'Image selected' : 'Upload image to search'}
-                    </span>
                     <input
                       type="file"
                       ref={searchFileInputRef}
@@ -504,6 +472,7 @@ export default function MainPage() {
                     )}
                   </Button>
                 </div>
+                {/* --- END IMAGE SEARCH UPLOAD --- */}
               </div>
               
               {searchProgress !== 'idle' && (
@@ -655,6 +624,9 @@ export default function MainPage() {
                                   e.stopPropagation();
                                   setImageFile(null);
                                   setImagePreview(null);
+                                  if (fileInputRef.current) {
+                                    fileInputRef.current.value = "";
+                                  }
                                 }}
                               >
                                 <Trash2 className="h-4 w-4 mr-1" />
