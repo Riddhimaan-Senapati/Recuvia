@@ -77,12 +77,5 @@ CREATE POLICY "Authenticated users can insert their own items" ON items
 
 -- Allow users to delete only their own items
 CREATE POLICY "Users can delete their own items" ON items
-  FOR DELETE TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 
-      FROM auth.users 
-      WHERE auth.users.id = submitter_id
-      AND auth.users.id = auth.uid()
-    )
-  );
+  FOR DELETE TO authenticated -- Apply to logged-in users
+  USING ( submitter_id = auth.uid() ); -- Allow delete ONLY IF the row's submitter_id matches the current user's ID

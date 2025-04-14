@@ -1,4 +1,4 @@
-// app/page.tsx
+// app/main/page.tsx
 'use client';
 
 import { useState, useRef, ChangeEvent, FormEvent, KeyboardEvent } from 'react';
@@ -297,6 +297,7 @@ export default function MainPage() {
           itemId: item.id,
           fileName: fileName,
         }),
+        credentials: 'include',
       });
       const result = await response.json();
       if (!response.ok) {
