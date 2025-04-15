@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ImageIcon, SearchIcon, Upload } from 'lucide-react';
+import { ImageIcon, SearchIcon, Upload, UserPlus, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -18,7 +18,7 @@ export default function Home() {
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center space-x-2">
             <ImageIcon className="h-6 w-6 text-found" />
-            <span className="text-xl font-bold">FindR</span>
+            <span className="text-xl font-bold">Recuvia</span>
           </div>
           <div className="flex items-center space-x-4">
             {user ? (
@@ -94,20 +94,20 @@ export default function Home() {
       {/* Features Section */}
       <section className="container px-4 py-16">
         <div className="grid gap-8 md:grid-cols-3">
-          <Card className="p-6 border-lost/20">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-lost/10">
-              <Upload className="h-6 w-6 text-lost" />
+          <Card className="p-6 border-found/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-found/10">
+              <Upload className="h-6 w-6 text-found" />
             </div>
-            <h3 className="mb-2 text-xl font-semibold text-lost">Report Found Items</h3>
+            <h3 className="mb-2 text-xl font-semibold text-found">Report Found Items</h3>
             <p className="text-muted-foreground">
               Upload photos and details of items you've found to help reunite them with their owners.
             </p>
           </Card>
           <Card className="p-6 border-found/20">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-found/10">
-              <SearchIcon className="h-6 w-6 text-found" />
+              <SearchIcon className="h-6 w-6 text-lost" />
             </div>
-            <h3 className="mb-2 text-xl font-semibold text-found">Dual Search Methods</h3>
+            <h3 className="mb-2 text-xl font-semibold text-lost">Dual Search Methods</h3>
             <p className="text-muted-foreground">
               Find your lost items using text descriptions or by uploading a similar image for visual matching.
             </p>
@@ -126,31 +126,39 @@ export default function Home() {
 
       {/* How It Works Section */}
       <section className="container px-4 py-16 border-t">
-        <h2 className="text-3xl font-bold text-center mb-12">How FindR Works</h2>
+        <h2 className="text-3xl font-bold text-center mb-12">How Recuvia Works</h2>
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="p-6 border-primary/20">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl font-bold">1</div>
+          <Card className="p-6 border-lost/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white text-found">
+              <UserPlus className="h-6 w-6" />
+            </div>
             <h3 className="mb-2 text-xl font-semibold">Sign Up</h3>
             <p className="text-muted-foreground">
               Create an account to access all features of the platform.
             </p>
           </Card>
-          <Card className="p-6 border-primary/20">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl font-bold">2</div>
+          <Card className="p-6 border-lost/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white text-lost">
+              <Upload className="h-6 w-6" />
+            </div>
             <h3 className="mb-2 text-xl font-semibold">Report or Search</h3>
             <p className="text-muted-foreground">
               Upload found items or search for your lost belongings.
             </p>
           </Card>
-          <Card className="p-6 border-primary/20">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl font-bold">3</div>
+          <Card className="p-6 border-lost/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white text-found">
+              <SearchIcon className="h-6 w-6" />
+            </div>
             <h3 className="mb-2 text-xl font-semibold">Review Matches</h3>
             <p className="text-muted-foreground">
               Browse through potential matches with similarity scores.
             </p>
           </Card>
-          <Card className="p-6 border-primary/20">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl font-bold">4</div>
+          <Card className="p-6 border-lost/20">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white text-lost">
+              <CheckCircle className="h-6 w-6" />
+            </div>
             <h3 className="mb-2 text-xl font-semibold">Reconnect</h3>
             <p className="text-muted-foreground">
               Contact the submitter to arrange retrieval of your item.
@@ -164,7 +172,7 @@ export default function Home() {
         <div className="container flex flex-col md:flex-row h-auto md:h-16 py-4 md:py-0 items-center justify-between">
           <div className="flex flex-col items-center md:items-start space-y-2 md:space-y-0">
             <span className="text-sm text-muted-foreground">
-              &copy; 2025 FindR. All rights reserved.
+              &copy; 2025 Recuvia. All rights reserved.
             </span>
           </div>
           

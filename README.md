@@ -1,6 +1,6 @@
-# FindR - Lost and Found Platform
+# Recuvia - Lost and Found Platform
 
-FindR is a modern web application designed to help people find their lost items and report found items using AI-powered image and text search capabilities. The platform leverages vector embeddings and semantic search to match lost items with found items based on visual and textual similarity.
+Recuvia is a modern web application designed to help people find their lost items and report found items using AI-powered image and text search capabilities. The platform leverages vector embeddings and semantic search to match lost items with found items based on visual and textual similarity.
 
 ## Features
 

@@ -12,7 +12,7 @@ export default function TermsPage() {
             </Button>
           </Link>
           
-          <span className="text-sm text-muted-foreground">FindR</span>
+          <span className="text-sm text-muted-foreground">Recuvia</span>
         </div>
         
         <h1 className="text-4xl font-bold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-lost to-found">Terms of Service</h1>
@@ -23,33 +23,33 @@ export default function TermsPage() {
           </p>
           
           <section className="space-y-4">
-            <h2 className="text-2xl font-bold text-found border-b pb-2">Welcome to FindR</h2>
+            <h2 className="text-2xl font-bold text-found border-b pb-2">Welcome to Recuvia</h2>
             <p className="text-base leading-relaxed">
-              These Terms of Service govern your use of the FindR platform and service. By using FindR, you agree to these terms.
+              These Terms of Service govern your use of the Recuvia platform and service. By using Recuvia, you agree to these terms.
             </p>
           </section>
           
           <section className="space-y-4">
             <h2 className="text-2xl font-bold text-found border-b pb-2">Use of Service</h2>
             <p className="text-base leading-relaxed">
-              FindR is a platform that helps users find lost items by matching them with items that have been found and uploaded by other users.
+              Recuvia is a platform that helps users find lost items by matching them with items that have been found and uploaded by other users.
             </p>
             <p className="text-base leading-relaxed">
-              You agree to use FindR only for lawful purposes and in accordance with these Terms.
+              You agree to use Recuvia only for lawful purposes and in accordance with these Terms.
             </p>
           </section>
           
           <section className="space-y-4">
             <h2 className="text-2xl font-bold text-found border-b pb-2">User Accounts</h2>
             <p className="text-base leading-relaxed">
-              To use certain features of FindR, you may need to create an account. You are responsible for maintaining the confidentiality of your account information.
+              To use certain features of Recuvia, you may need to create an account. You are responsible for maintaining the confidentiality of your account information.
             </p>
           </section>
           
           <section className="space-y-4">
             <h2 className="text-2xl font-bold text-found border-b pb-2">User Content</h2>
             <p className="text-base leading-relaxed">
-              When you upload content to FindR, including images and descriptions of items, you grant us a license to use that content in connection with the operation of our service.
+              When you upload content to Recuvia, including images and descriptions of items, you grant us a license to use that content in connection with the operation of our service.
             </p>
             <p className="text-base leading-relaxed">
               You represent and warrant that you own or have the necessary rights to the content you post, and that your content does not violate the rights of any third party.
@@ -59,21 +59,21 @@ export default function TermsPage() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold text-found border-b pb-2">Intellectual Property</h2>
             <p className="text-base leading-relaxed">
-              The FindR service and its original content, features, and functionality are owned by FindR and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws.
+              The Recuvia service and its original content, features, and functionality are owned by Recuvia and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws.
             </p>
           </section>
           
           <section className="space-y-4">
             <h2 className="text-2xl font-bold text-found border-b pb-2">Disclaimers</h2>
             <p className="text-base leading-relaxed">
-              FindR is provided "as is" and "as available" without any warranties of any kind. We do not guarantee that FindR will always be secure or error-free.
+              Recuvia is provided "as is" and "as available" without any warranties of any kind. We do not guarantee that Recuvia will always be secure or error-free.
             </p>
           </section>
           
           <section className="space-y-4">
             <h2 className="text-2xl font-bold text-found border-b pb-2">Limitation of Liability</h2>
             <p className="text-base leading-relaxed">
-              To the maximum extent permitted by law, FindR shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the service.
+              To the maximum extent permitted by law, Recuvia shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the service.
             </p>
           </section>
           

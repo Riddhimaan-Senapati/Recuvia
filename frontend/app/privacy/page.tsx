@@ -12,7 +12,7 @@ export default function PrivacyPage() {
             </Button>
           </Link>
           
-          <span className="text-sm text-muted-foreground">FindR</span>
+          <span className="text-sm text-muted-foreground">Recuvia</span>
         </div>
         
         <h1 className="text-4xl font-bold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-lost to-found">Privacy Policy</h1>
@@ -25,7 +25,7 @@ export default function PrivacyPage() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold text-lost border-b pb-2">Introduction</h2>
             <p className="text-base leading-relaxed">
-              At FindR, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our service.
+              At Recuvia, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our service.
             </p>
           </section>
           

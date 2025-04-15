@@ -66,7 +66,7 @@ export default function SignIn() {
         <div className="flex flex-col items-center mb-8">
           <Link href="/" className="flex items-center space-x-2 mb-8">
             <ImageIcon className="h-6 w-6 text-found" />
-            <span className="text-xl font-bold">FindR</span>
+            <span className="text-xl font-bold">Recuvia</span>
           </Link>
           <h1 className="text-2xl font-bold">Sign In</h1>
           {error && (

@@ -368,7 +368,7 @@ export default function MainPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="flex justify-between items-center mb-8">
-        <Link href="/" className="text-2xl font-bold">FindR</Link>
+        <Link href="/" className="text-2xl font-bold">Recuvia</Link>
         <div className="space-x-4">
           {user ? (
             <div className="flex items-center gap-4">

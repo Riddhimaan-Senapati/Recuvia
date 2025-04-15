@@ -29,7 +29,7 @@ export default function ContactPage() {
             </Button>
           </Link>
           
-          <span className="text-sm text-muted-foreground">FindR</span>
+          <span className="text-sm text-muted-foreground">Recuvia</span>
         </div>
         
         <h1 className="text-4xl font-bold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-lost to-found">Contact Us</h1>
