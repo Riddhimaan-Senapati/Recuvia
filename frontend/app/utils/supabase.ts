@@ -43,17 +43,38 @@ export const processingStatus: Record<string, {
 // Vector Search function (uses the global singleton client - OK if RLS allows public select)
 export async function searchByVector(embedding: number[], limit: number = MAX_RESULTS, threshold: number = SIMILARITY_THRESHOLD) {
   try {
-    // Using global client
+    // First, get the matches from the function
     const { data, error } = await supabase.rpc('match_items', {
-        query_embedding: embedding,
-        match_threshold: threshold,
-        match_count: limit
+      query_embedding: embedding,
+      match_threshold: threshold,
+      match_count: limit
     });
     if (error) {
-        console.error("Error in RPC match_items:", error);
-        throw error;
+      console.error("Error in RPC match_items:", error);
+      throw error;
     }
-    return data || [];
+    if (!data || data.length === 0) return [];
+
+    // Now fetch the emails for the submitter_ids
+    const itemIds = data.map((item: any) => item.id);
+    const { data: itemsWithEmail, error: emailError } = await supabase
+        .from('items_with_email')
+        .select('id, submitter_email')
+        .in('id', itemIds);
+    if (emailError) {
+       console.error('Error fetching emails from view:', emailError);
+       return data;
+    }
+    const idToEmail: Record<string, string> = {};
+    for (const item of itemsWithEmail) {
+        idToEmail[item.id] = item.submitter_email;
+    }
+    
+    // Attach email to each item
+    return data.map((item: any) => ({
+      ...item,
+      submitter_email: idToEmail[item.id] || null,
+    }));
   } catch (error) {
     console.error('Error executing vector search:', error);
     throw error;

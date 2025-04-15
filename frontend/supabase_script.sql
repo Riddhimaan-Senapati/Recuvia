@@ -79,3 +79,12 @@ CREATE POLICY "Authenticated users can insert their own items" ON items
 CREATE POLICY "Users can delete their own items" ON items
   FOR DELETE TO authenticated -- Apply to logged-in users
   USING ( submitter_id = auth.uid() ); -- Allow delete ONLY IF the row's submitter_id matches the current user's ID
+
+-- allow users to see the submitter's emails
+create or replace view public.items_with_email as
+select
+  i.*,
+  u.email as submitter_email
+from
+  items i
+  join auth.users u on i.submitter_id = u.id;

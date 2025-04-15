@@ -85,15 +85,16 @@ export async function POST(req: NextRequest) {
 
     // Format the results for the frontend
     // **** Apply the type to 'item' parameter ****
-    const formattedResults = results.map((item: MatchItemsResult) => ({
+    const formattedResults = results.map((item: any) => ({
       id: item.id,
       title: item.title,
       description: item.description,
       location: item.location || "Unknown",
       created_at: item.created_at,
-      submitter_id: item.submitter_id, // Pass ID directly
+      submitter_id: item.submitter_id,
+      profiles: { email: item.submitter_email }, // Attach email for frontend
       item_images: [{
-        image_url: item.url // Use the 'url' field from the result
+        image_url: item.url
       }],
       score: item.score
     }));
