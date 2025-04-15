@@ -178,6 +178,19 @@ export default function MainPage() {
     setSearchProgress('searching');
     setSearchStatusMessage('Searching for items...');
     try {
+      // --- Custom max results validation ---
+      let maxResultsNum: number | undefined = undefined;
+      if (maxResults === 'custom') {
+        if (!customMaxResults || isNaN(Number(customMaxResults)) || Number(customMaxResults) < 1) {
+          alert('Please enter a valid positive number for custom max results.');
+          setLoading(false);
+          return;
+        }
+        maxResultsNum = Number(customMaxResults);
+      } else if (maxResults !== 'all') {
+        maxResultsNum = Number(maxResults);
+      }
+      // If 'all', undefined is sent (handled by backend as large value)
       const response = await fetch('/api/search/text', {
         method: 'POST',
         headers: {
@@ -212,10 +225,18 @@ export default function MainPage() {
     setSearchProgress('searching');
     setSearchStatusMessage('Processing image search...');
     try {
+      if (maxResults === 'custom') {
+        if (!customMaxResults || isNaN(Number(customMaxResults)) || Number(customMaxResults) < 1) {
+          alert('Please enter a valid positive number for custom max results.');
+          setSearchLoading(false);
+          setLoading(false);
+          return;
+        }
+      }
       const formData = new FormData();
       formData.append('image', searchImage);
       formData.append('threshold', String(similarityThreshold));
-      formData.append('maxResults', maxResults);
+      formData.append('maxResults', maxResults === 'custom' ? customMaxResults : maxResults);
       const response = await fetch('/api/search/image', {
         method: 'POST',
         body: formData,
