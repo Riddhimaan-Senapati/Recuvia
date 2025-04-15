@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   console.log("Text search API called");
 
   try {
-    const { query } = await req.json();
+    const { query, threshold, maxResults } = await req.json();
     if (!query || typeof query !== 'string' || query.trim() === '') {
         return NextResponse.json({ error: 'Valid query string is required' }, { status: 400 });
     }
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
 
     // Search in Supabase
     // Explicitly type the expected return of searchByVector for clarity
-    const results: MatchItemsResult[] = await searchByVector(textVector, MAX_RESULTS);
+    const results: MatchItemsResult[] = await searchByVector(textVector, typeof maxResults === 'number' ? maxResults : MAX_RESULTS, typeof threshold === 'number' ? threshold : SIMILARITY_THRESHOLD);
 
     if (!results) { /* ... null check ... */ return NextResponse.json({ items: [] }); }
     if (results.length === 0) {

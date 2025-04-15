@@ -41,12 +41,12 @@ export const processingStatus: Record<string, {
 }> = {};
 
 // Vector Search function (uses the global singleton client - OK if RLS allows public select)
-export async function searchByVector(embedding: number[], limit: number = MAX_RESULTS) {
+export async function searchByVector(embedding: number[], limit: number = MAX_RESULTS, threshold: number = SIMILARITY_THRESHOLD) {
   try {
     // Using global client
     const { data, error } = await supabase.rpc('match_items', {
         query_embedding: embedding,
-        match_threshold: SIMILARITY_THRESHOLD,
+        match_threshold: threshold,
         match_count: limit
     });
     if (error) {

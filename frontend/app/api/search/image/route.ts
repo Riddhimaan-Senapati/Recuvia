@@ -3,9 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
-// Import Supabase functions AND the Supabase client type if needed elsewhere, although searchByVector uses the global one
-// Import VECTOR_DIMENSION for checks
-import { searchByVector, MAX_RESULTS, VECTOR_DIMENSION } from '@/app/utils/supabase';
+import { searchByVector, MAX_RESULTS, VECTOR_DIMENSION, SIMILARITY_THRESHOLD } from '@/app/utils/supabase';
 
 // For image embedding generation
 import { AutoProcessor, RawImage, CLIPVisionModelWithProjection, env } from "@xenova/transformers";
@@ -63,6 +61,20 @@ export async function POST(req: NextRequest) {
     const buffer = await image.arrayBuffer();
     console.log("Image size:", buffer.byteLength, "bytes");
 
+    // Accept threshold and maxResults from formData
+    let threshold: number = SIMILARITY_THRESHOLD;
+    let maxResults: number = MAX_RESULTS;
+    const thresholdStr = formData.get('threshold');
+    const maxResultsStr = formData.get('maxResults');
+    if (thresholdStr && !isNaN(Number(thresholdStr))) {
+      threshold = Number(thresholdStr);
+    }
+    if (maxResultsStr && maxResultsStr !== 'all' && !isNaN(Number(maxResultsStr))) {
+      maxResults = Number(maxResultsStr);
+    } else if (maxResultsStr === 'all') {
+      maxResults = 10000; // Arbitrary high value for 'all'
+    }
+
     // Load models if needed (unchanged)
     if (!processor) { /* ... load processor ... */ console.log("Loading processor..."); processor = await AutoProcessor.from_pretrained(model_id, { cache_dir: env.cacheDir, local_files_only: false }); console.log("Processor loaded."); }
     if (!vision_model) { /* ... load vision model ... */ console.log("Loading vision model..."); vision_model = await CLIPVisionModelWithProjection.from_pretrained(model_id, { cache_dir: env.cacheDir, local_files_only: false }); console.log("Vision model loaded."); }
@@ -82,9 +94,9 @@ export async function POST(req: NextRequest) {
     }
     console.log(`Image embedding generated (dim: ${imageVector.length}), searching in Supabase...`);
 
-    // Search in Supabase (unchanged)
+    // Search in Supabase
     // Explicitly type the expected return of searchByVector for clarity
-    const results: MatchItemsResult[] = await searchByVector(imageVector, MAX_RESULTS);
+    const results: MatchItemsResult[] = await searchByVector(imageVector, maxResults, threshold);
 
     if (!results) {
         console.log("Search function returned null or undefined.");
