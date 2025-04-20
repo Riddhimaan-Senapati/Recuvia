@@ -67,10 +67,7 @@ ALTER TABLE items ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can view items" ON items
   FOR SELECT USING (true);
 
- --1. Drop the existing incorrect policy
-DROP POLICY IF EXISTS "Authenticated users can insert their own items" ON items;
-
--- 2. Create the correct policy
+-- Allow authenticated users to insert their own items
 CREATE POLICY "Authenticated users can insert their own items" ON items
   FOR INSERT TO authenticated
   WITH CHECK ( submitter_id = auth.uid() ); -- Ensures the submitter_id matches the user inserting the row
@@ -80,7 +77,7 @@ CREATE POLICY "Users can delete their own items" ON items
   FOR DELETE TO authenticated -- Apply to logged-in users
   USING ( submitter_id = auth.uid() ); -- Allow delete ONLY IF the row's submitter_id matches the current user's ID
 
--- allow users to see the submitter's emails
+-- create view to allow users to see the submitter's emails
 create or replace view public.items_with_email as
 select
   i.*,

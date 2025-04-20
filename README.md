@@ -10,6 +10,10 @@ Recuvia is a modern web application designed to help people find their lost item
   - Text-based semantic search for lost items
   - Image-based similarity search using computer vision
   - Cross-search capability to find similar items from an existing item
+- **Customizable Vector Search**:
+  - Users can adjust the similarity threshold to control how closely results must match their query (lower threshold = more results, higher = stricter match)
+  - Users can set the maximum number of results returned per search, including an "all" option or a custom value
+  - These controls are available for both text and image search in the main search interface
 
 
 ## Technology Stack
@@ -17,8 +21,7 @@ Recuvia is a modern web application designed to help people find their lost item
 - **Frontend**: Next.js 15, React, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes (Serverless Functions)
 - **Authentication**: Supabase Auth
-- **Storage**: Supabase Storage for image files
-- **Vector Database**: Milvus for storing and searching vector embeddings
+- **Database**: Supabase for storing images, image embeddings and searching vector embeddings
 - **AI Models**: CLIP (Contrastive Language-Image Pre-training) for generating image and text embeddings
 - **Deployment**: Vercel
 
@@ -28,7 +31,7 @@ Recuvia is a modern web application designed to help people find their lost item
    - Users can search for lost items using text descriptions
    - Users can upload an image to find visually similar items
    - The system converts the query (text or image) into vector embeddings
-   - Milvus performs similarity search to find matching items
+   - Supabase performs similarity search to find matching items
 
 2. **Reporting Found Items**:
    - Users upload an image of the found item with details
@@ -45,14 +48,17 @@ Recuvia is a modern web application designed to help people find their lost item
 
 - Node.js 18+ and npm
 - Supabase account
-- Milvus database (cloud or self-hosted)
 
 ### Setup
 
 1. Clone the repository
 2. Install dependencies: `npm install`
 3. Set up environment variables (see `.env.example`)
-4. Run development server: `npm run dev`
+4. **Initialize Supabase database:**
+   - Open your Supabase project
+   - Go to the SQL Editor
+   - Run the SQL script found at `frontend/supabase_script.sql` to create the required tables, functions, and extensions for vector search
+5. Run development server: `npm run dev`
 
 ### Deployment
 

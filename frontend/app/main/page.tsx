@@ -788,33 +788,47 @@ export default function MainPage() {
                     </Button>
                     
                     {uploadStatus !== 'idle' && (
-                      <div className={`mt-4 p-3 rounded-md ${
-                        uploadStatus === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
-                        uploadStatus === 'complete' ? 'bg-green-50 text-green-700 border border-green-200' :
-                        'bg-blue-50 text-blue-700 border border-blue-200'
-                      }`}>
-                        <div className="flex items-center">
+                      <div
+                        className={`mt-4 rounded-2xl shadow-lg border transition-all duration-200 ${
+                          uploadStatus === 'error'
+                            ? 'bg-red-50/90 border-red-200 text-red-700'
+                            : uploadStatus === 'complete'
+                            ? 'bg-green-50/90 border-green-200 text-green-700'
+                            : 'bg-blue-50/90 border-blue-200 text-blue-700'
+                        }`}
+                        style={{ minWidth: 320, maxWidth: 480, margin: '0 auto', padding: '1.5rem' }}
+                        role="alert"
+                        aria-live="assertive"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
                           {uploadStatus === 'error' && (
-                            <div className="mr-2 text-red-500">⚠️</div>
+                            <span className="inline-flex items-center justify-center rounded-full bg-red-100 p-2">
+                              <Trash2 className="h-5 w-5 text-red-500" />
+                            </span>
                           )}
                           {uploadStatus === 'complete' && (
-                            <CheckCircle className="mr-2 h-5 w-5 text-green-500" />
+                            <span className="inline-flex items-center justify-center rounded-full bg-green-100 p-2">
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                            </span>
                           )}
                           {uploadStatus === 'uploading' && (
-                            <Clock className="mr-2 h-5 w-5 text-blue-500 animate-pulse" />
+                            <span className="inline-flex items-center justify-center rounded-full bg-blue-100 p-2">
+                              <Clock className="h-5 w-5 text-blue-500 animate-spin" />
+                            </span>
                           )}
                           <div className="flex-1">
-                            <p className="font-medium">
-                              {uploadStatus === 'error' ? 'Upload Error' :
-                               uploadStatus === 'complete' ? 'Upload Successful!' :
-                               'Uploading...'}
+                            <p className="font-semibold text-base">
+                              {uploadStatus === 'error'
+                                ? 'Upload Error'
+                                : uploadStatus === 'complete'
+                                ? 'Upload Successful!'
+                                : 'Uploading...'}
                             </p>
-                            <p className="text-sm">{statusMessage}</p>
+                            <p className="text-sm opacity-80">{statusMessage}</p>
                           </div>
                         </div>
-                        
                         {uploadStatus === 'complete' && (
-                          <div className="mt-2 text-sm">
+                          <div className="mt-2 text-sm text-green-700">
                             <p>Your item has been successfully uploaded and is now searchable.</p>
                           </div>
                         )}

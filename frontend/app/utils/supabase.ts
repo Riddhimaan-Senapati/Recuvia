@@ -20,7 +20,7 @@ export const supabase = (() => {
         persistSession: true,
         detectSessionInUrl: false,
         flowType: 'pkce',
-        storageKey: 'sb-kryikfrrvypivktkqgya-auth-token' // Default key
+        storageKey: process.env.SUPABASE_STORAGE_KEY // Default key
       }
     }
   );
