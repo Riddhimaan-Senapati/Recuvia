@@ -1,12 +1,17 @@
-'use client';
+"use client";
 
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { ImageIcon, SearchIcon, Upload, UserPlus, CheckCircle } from 'lucide-react';
-import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  ImageIcon,
+  SearchIcon,
+  Upload,
+  UserPlus,
+  CheckCircle,
+} from "lucide-react";
+import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-
 
 export default function Home() {
   const { user, signOut } = useAuth();
@@ -23,15 +28,17 @@ export default function Home() {
           <div className="flex items-center space-x-4">
             {user ? (
               <div className="flex items-center gap-4">
-                <span className="text-gray-700 dark:text-gray-300">{user.email}</span>
+                <span className="text-gray-700 dark:text-gray-300">
+                  {user.email}
+                </span>
                 <ThemeToggle />
-                <Button 
-                  variant="destructive" 
-                  onClick={signOut}
-                >
+                <Button variant="destructive" onClick={signOut}>
                   Sign Out
                 </Button>
-                <Button className="bg-found text-found-foreground hover:bg-found/90" asChild>
+                <Button
+                  className="bg-found text-found-foreground hover:bg-found/90"
+                  asChild
+                >
                   <Link href="/main">Go to Dashboard</Link>
                 </Button>
               </div>
@@ -44,7 +51,10 @@ export default function Home() {
                 <Button variant="ghost" asChild>
                   <Link href="/auth/signin">Sign In</Link>
                 </Button>
-                <Button className="bg-found text-found-foreground hover:bg-found/90" asChild>
+                <Button
+                  className="bg-found text-found-foreground hover:bg-found/90"
+                  asChild
+                >
                   <Link href="/auth/signup">Sign Up</Link>
                 </Button>
               </>
@@ -57,15 +67,21 @@ export default function Home() {
       <section className="container px-4 py-24 md:py-32">
         <div className="flex flex-col items-center text-center">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-            <span className="text-found">Find</span> What You've <span className="text-lost">Lost</span>
+            <span className="text-found">Find</span> What You've{" "}
+            <span className="text-lost">Lost</span>
           </h1>
           <p className="mt-6 max-w-[42rem] text-lg text-muted-foreground sm:text-xl">
-            Using AI-powered semantic search to connect lost items with their owners.
-            Search by text description or upload a photo to find visual matches.
+            Using AI-powered semantic search to connect lost items with their
+            owners. Search by text description or upload a photo to find visual
+            matches.
           </p>
           <div className="mt-12 flex flex-col gap-4 sm:flex-row">
             {user ? (
-              <Button size="lg" className="gap-2 bg-found text-found-foreground hover:bg-found/90" asChild>
+              <Button
+                size="lg"
+                className="gap-2 bg-found text-found-foreground hover:bg-found/90"
+                asChild
+              >
                 <Link href="/main">
                   <SearchIcon className="h-5 w-5" />
                   Go to Dashboard
@@ -73,13 +89,21 @@ export default function Home() {
               </Button>
             ) : (
               <>
-                <Button size="lg" className="gap-2 bg-lost text-lost-foreground hover:bg-lost/90" asChild>
+                <Button
+                  size="lg"
+                  className="gap-2 bg-lost text-lost-foreground hover:bg-lost/90"
+                  asChild
+                >
                   <Link href="/auth/signup">
                     <Upload className="h-5 w-5" />
                     Sign Up to Report Items
                   </Link>
                 </Button>
-                <Button size="lg" className="gap-2 bg-found text-found-foreground hover:bg-found/90" asChild>
+                <Button
+                  size="lg"
+                  className="gap-2 bg-found text-found-foreground hover:bg-found/90"
+                  asChild
+                >
                   <Link href="/auth/signin">
                     <SearchIcon className="h-5 w-5" />
                     Sign In to Search
@@ -98,27 +122,36 @@ export default function Home() {
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-found/10">
               <Upload className="h-6 w-6 text-found" />
             </div>
-            <h3 className="mb-2 text-xl font-semibold text-found">Report Found Items</h3>
+            <h3 className="mb-2 text-xl font-semibold text-found">
+              Report Found Items
+            </h3>
             <p className="text-muted-foreground">
-              Upload photos and details of items you've found to help reunite them with their owners.
+              Upload photos and details of items you've found to help reunite
+              them with their owners.
             </p>
           </Card>
           <Card className="p-6 border-found/20">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-found/10">
               <SearchIcon className="h-6 w-6 text-lost" />
             </div>
-            <h3 className="mb-2 text-xl font-semibold text-lost">Dual Search Methods</h3>
+            <h3 className="mb-2 text-xl font-semibold text-lost">
+              Dual Search Methods
+            </h3>
             <p className="text-muted-foreground">
-              Find your lost items using text descriptions or by uploading a similar image for visual matching.
+              Find your lost items using text descriptions or by uploading a
+              similar image for visual matching.
             </p>
           </Card>
           <Card className="p-6 border-found/20">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-found/10">
               <ImageIcon className="h-6 w-6 text-found" />
             </div>
-            <h3 className="mb-2 text-xl font-semibold text-found">Vector Similarity</h3>
+            <h3 className="mb-2 text-xl font-semibold text-found">
+              Vector Similarity
+            </h3>
             <p className="text-muted-foreground">
-              Our platform uses vector embeddings and Milvus database to find the most similar matches to your query.
+              Our platform uses vector embeddings and Milvus database to find
+              the most similar matches to your query.
             </p>
           </Card>
         </div>
@@ -126,7 +159,9 @@ export default function Home() {
 
       {/* How It Works Section */}
       <section className="container px-4 py-16 border-t">
-        <h2 className="text-3xl font-bold text-center mb-12">How Recuvia Works</h2>
+        <h2 className="text-3xl font-bold text-center mb-12">
+          How Recuvia Works
+        </h2>
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           <Card className="p-6 border-lost/20">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white text-found">
@@ -175,11 +210,12 @@ export default function Home() {
               &copy; 2025 Recuvia. All rights reserved.
             </span>
           </div>
-          
+
           <span className="text-sm text-muted-foreground my-2 md:my-0">
-            Built with <span className="text-red-500">❤</span> by Riddhimaan Senapati
+            Built with <span className="text-red-500">❤</span> by Riddhimaan
+            Senapati
           </span>
-          
+
           <div className="flex items-center space-x-4 mt-4 md:mt-0">
             <Button variant="ghost" size="sm" asChild>
               <Link href="/privacy">Privacy</Link>

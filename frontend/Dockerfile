@@ -1,4 +1,4 @@
-FROM node:18 AS base
+FROM node:22 AS base
 
 # Build the application
 FROM base AS builder
@@ -19,7 +19,7 @@ RUN \
   fi
 
 # Run the application
-FROM node:18 AS runner
+FROM node:22 AS runner
 WORKDIR /app
 ENV NODE_ENV production
 

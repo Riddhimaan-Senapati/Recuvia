@@ -1,16 +1,21 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 async function downloadModels() {
   try {
     // Dynamically import transformers
-    const { pipeline } = await import('@xenova/transformers');
+    const { pipeline } = await import("@xenova/transformers");
 
-    const modelPath = path.join(process.cwd(), '.cache', 'transformers', 'Xenova/clip-vit-base-patch32');
-    
+    const modelPath = path.join(
+      process.cwd(),
+      ".cache",
+      "transformers",
+      "Xenova/clip-vit-base-patch32",
+    );
+
     // Check if models are already downloaded
     if (fs.existsSync(modelPath)) {
-      console.log('Models already downloaded');
+      console.log("Models already downloaded");
       return;
     }
 
@@ -18,13 +23,13 @@ async function downloadModels() {
     fs.mkdirSync(modelPath, { recursive: true });
 
     // Download models
-    await pipeline('feature-extraction', 'Xenova/clip-vit-base-patch32', {
-      cache_dir: modelPath
+    await pipeline("feature-extraction", "Xenova/clip-vit-base-patch32", {
+      cache_dir: modelPath,
     });
-    
-    console.log('Models downloaded successfully');
+
+    console.log("Models downloaded successfully");
   } catch (error) {
-    console.error('Error downloading models:', error);
+    console.error("Error downloading models:", error);
     // Don't exit process to prevent build failure
   }
 }

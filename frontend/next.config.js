@@ -1,45 +1,25 @@
 /** @type {import('next').NextConfig} */
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const remotePatterns = supabaseUrl
+  ? (() => {
+      const url = new URL(supabaseUrl);
+      return [
+        {
+          protocol: url.protocol.replace(":", ""),
+          hostname: url.hostname,
+          ...(url.port ? { port: url.port } : {}),
+        },
+      ];
+    })()
+  : [];
+
 const nextConfig = {
   reactStrictMode: true,
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  images: { 
+  images: {
     unoptimized: true,
-    domains: [process.env.NEXT_PUBLIC_SUPABASE_URL]
-   },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // Prevent webpack from processing Node.js modules
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        path: false,
-        os: false,
-        crypto: false,
-        stream: false,
-        http: false,
-        https: false,
-        zlib: false,
-        child_process: false,
-        net: false,
-        tls: false,
-      };
-      
-      // Add a rule to ignore HTML files in node_modules
-      config.module.rules.push({
-        test: /\.html$/,
-        include: /node_modules/,
-        use: 'null-loader',
-      });
-    }
-    return config;
+    remotePatterns,
   },
-  serverExternalPackages: ["@zilliz/milvus2-sdk-node","@xenova/transformers"],
-	outputFileTracingIncludes: {
-			// When deploying to Vercel, the following configuration is required
-			"/api/**/*": ["node_modules/@zilliz/milvus2-sdk-node/dist/proto/**/*"],
-		},
+  serverExternalPackages: ["@xenova/transformers"],
 };
 
 module.exports = nextConfig;

@@ -1,12 +1,18 @@
-'use client';
+"use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { useRouter, usePathname } from 'next/navigation';
-import { Session, User } from '@supabase/supabase-js';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { createBrowserSupabaseClient } from "@/app/utils/supabase-browser";
+import { useRouter, usePathname } from "next/navigation";
+import { User } from "@supabase/supabase-js";
 
 // Create a single instance of Supabase client
-const supabaseClient = createClientComponentClient();
+const supabaseClient = createBrowserSupabaseClient();
 
 // Define the type for the context value
 type AuthContextType = {
@@ -34,26 +40,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     const getUser = async () => {
       // Use the existing client
-      const { data: { user } } = await supabaseClient.auth.getUser();
+      const {
+        data: { user },
+      } = await supabaseClient.auth.getUser();
       setUser(user);
       setLoading(false);
 
       // Handle protected routes
-      const isAuthRoute = pathname.startsWith('/auth/');
-      const isMainPage = pathname === '/main';
-      const isHomePage = pathname === '/';
+      const isAuthRoute = pathname.startsWith("/auth/");
+      const isMainPage = pathname === "/main";
 
       if (user) {
         // User is logged in
         if (isAuthRoute) {
           // Redirect away from auth pages if already logged in
-          router.push('/main');
+          router.push("/main");
         }
       } else {
         // User is not logged in
         if (isMainPage) {
           // Redirect to sign in if trying to access protected page
-          router.push('/auth/signin');
+          router.push("/auth/signin");
         }
       }
     };
@@ -61,15 +68,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     getUser();
 
     // Set up auth state change listener
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabaseClient.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
-      
+
       // Handle auth state changes
-      if (event === 'SIGNED_IN') {
-        router.push('/main');
-      } else if (event === 'SIGNED_OUT') {
-        router.push('/');
+      if (event === "SIGNED_IN") {
+        router.push("/main");
+      } else if (event === "SIGNED_OUT") {
+        router.push("/");
       }
     });
 
@@ -87,20 +96,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const value = {
     user,
     loading,
-    signOut
+    signOut,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}; 
+};

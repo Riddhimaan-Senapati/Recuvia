@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "nextjs", "import", "unicorn", "typescript"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "react/purity": "off",
+    "react/set-state-in-effect": "off"
+  },
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "node": true
+  }
+}

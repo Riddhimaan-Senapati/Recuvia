@@ -1,8 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/app/utils/supabase';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createBrowserSupabaseClient } from "@/app/utils/supabase-browser";
+
+const supabase = createBrowserSupabaseClient();
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -14,21 +16,21 @@ export default function AuthCallback() {
         // Get the auth code from the URL
         const hash = window.location.hash;
         const query = window.location.search;
-        
+
         // Exchange the code for a session
         const { error } = await supabase.auth.exchangeCodeForSession(
-          query || hash
+          query || hash,
         );
 
         if (error) {
-          console.error('Error processing auth callback:', error);
+          console.error("Error processing auth callback:", error);
         }
       } catch (error) {
-        console.error('Unexpected error during auth callback:', error);
+        console.error("Unexpected error during auth callback:", error);
       } finally {
         // Redirect to home page whether successful or not
         // User will be authenticated or not based on the session state
-        router.push('/main');
+        router.push("/main");
         router.refresh();
       }
     };
